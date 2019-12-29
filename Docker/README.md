@@ -6,6 +6,6 @@ Docker images of `qmrlab/mcrgui` and `qmrlab/octjn` are built at each qMRLab rel
 
 Below section keeps a log of which Docker image is associated with which `process` of which workflow. 
 
-#### qMRflow: `mt_sat` pipeline 
+#### qMRflow: [`mt_sat` pipeline](https://github.com/qMRLab/qMRflow/tree/master/mt_sat)
 * `process`: Align_And_Extract
      * `image`: qmrlab/antsfsl:latest 
