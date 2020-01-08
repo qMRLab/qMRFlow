@@ -362,7 +362,7 @@ process Fit_MTsat_With_B1map_With_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/agahkarakuzu/mtsatflow/master/mt_sat_wrapper.m
+            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
             $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.COR_B1,'qMRLab','$params.qMRLab_DIR'); exit();"
         """
@@ -388,7 +388,7 @@ process Fit_MTsat_With_B1map_Without_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/agahkarakuzu/mtsatflow/master/mt_sat_wrapper.m
+            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
             $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.COR_B1,'qMRLab','$params.qMRLab_DIR'); exit();"
         """
@@ -421,7 +421,7 @@ process Fit_MTsat_Without_B1map_With_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/agahkarakuzu/mtsatflow/master/mt_sat_wrapper.m
+            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
             $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qMRLab','$params.qMRLab_DIR'); exit();"
         """
@@ -447,7 +447,7 @@ process Fit_MTsat_Without_B1map_Without_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/agahkarakuzu/mtsatflow/master/mt_sat_wrapper.m
+            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
             $params.runcmd --no-gui --eval "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qMRLab','$params.qMRLab_DIR'); exit();"
         """
