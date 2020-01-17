@@ -1,0 +1,19 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: qmrlab/minimal:latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: See files from the tested repository
+      run: ls -la 
+    - name: Call the software that comes with Docker
+      run: |
+        octave --no-gui --eval "qMRLabVer; exit();"
