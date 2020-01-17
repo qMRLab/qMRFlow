@@ -16,4 +16,4 @@ jobs:
       run: ls -la 
     - name: Call the software that comes with Docker
       run: |
-        octave --no-gui --eval "qMRLabVer; exit();"
+        octave --no-gui --eval "run('/root/work/qMRLab/startup.m'); qMRLabVer; exit();"
