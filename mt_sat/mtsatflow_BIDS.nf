@@ -6,16 +6,17 @@ calculate Magnetization Transfer Saturation Index (MTsat) map along
 with a longitudinal relaxation time (T1) map.
 
 Dependencies: 
-    - Advanced notmarization tools (ANTs, https://github.com/ANTsX/ANTs)
-        - Installation: Built from source (if not Docker)
-    - FSL 
-        - Installation: Built from source (if not Docker)    
-    - qMRLab (https://qmrlab.org) 
-        - MATLAB/Octave 
+    These dependencies must be installed if Docker is not going
+    to be used. 
+        - Advanced notmarization tools (ANTs, https://github.com/ANTsX/ANTs)
+        - FSL  
+        - qMRLab (https://qmrlab.org) 
+        - git     
+
 Docker: 
-    - https://hub.docker.com/u/qmrlab
-    - qmrlab/minimal:v2.3.1
-    - qmrlab/antsfsl:latest
+        - https://hub.docker.com/u/qmrlab
+        - qmrlab/minimal:v2.3.1
+        - qmrlab/antsfsl:latest
 
 Author:
     Agah Karakuzu 2019
@@ -58,9 +59,8 @@ if (params.platform == "matlab"){
     params.runcmd = params.matlab
 }
 
-params.wrapper_source_link = "https://raw.githubusercontent.com/qMRLab/qMRFlow/master/Wrappers/mt_sat/mt_sat_wrapper.m"
-params.wrapper_version_link = "https://raw.githubusercontent.com/qMRLab/qMRFlow/master/Wrappers/mt_sat/version.txt"
-
+params.wrapper_repo = "https://github.com/qMRLab/qMRWrappers.git"
+              
 workflow.onComplete {
     log.info "Pipeline completed at: $workflow.complete"
     log.info "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
@@ -419,8 +419,11 @@ process Fit_MTsat_With_B1map_With_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
-
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            cd mt_sat 
+            sh init_mt_sat.sh $params.wrapper_version 
+            
             $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qMRLab','$params.qmrlab_dir'); exit();"
         """
 }
@@ -445,7 +448,10 @@ process Fit_MTsat_With_B1map_Without_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            cd mt_sat 
+            sh init_mt_sat.sh $params.wrapper_version 
 
             $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.b1cor_factor,'qMRLab','$params.qmrlab_dir'); exit();"
         """
@@ -478,7 +484,10 @@ process Fit_MTsat_Without_B1map_With_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            cd mt_sat 
+            sh init_mt_sat.sh $params.wrapper_version 
 
             $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qMRLab','$params.qmrlab_dir'); exit();"
         """
@@ -504,7 +513,10 @@ process Fit_MTsat_Without_B1map_Without_Bet{
 
     script: 
         """
-            wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            cd mt_sat 
+            sh init_mt_sat.sh $params.wrapper_version 
 
             $params.runcmd --no-gui --eval "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qMRLab','$params.qmrlab_dir'); exit();"
         """
