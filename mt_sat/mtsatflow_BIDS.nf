@@ -58,6 +58,9 @@ if (params.PLATFORM == "matlab"){
     params.runcmd = params.matlab
 }
 
+params.wrapper_source_link = "https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m"
+params.wrapper_version_link = 
+
 workflow.onComplete {
     log.info "Pipeline completed at: $workflow.complete"
     log.info "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
@@ -129,11 +132,11 @@ if(params.root){
 
     /* ==== BIDS: B1 map ==== */             
     /* Look for B1map in fmap folder */
-    Channel
-           .fromPath("$root/**/fmap/sub-*_B1plusmap.nii.gz", maxDepth:2)   
-           .map{[it.parent.parent.name, it]}
-           .set{b1plus}      
-             
+    b1_data = Channel
+           .fromFilePairs("$root/**/fmap/sub-*_{B1plusmap}.nii.gz", maxDepth:2, size:1, flat:true)   
+    (b1plus) = b1_data       
+           .map{sid, B1plusmap -> [tuple(sid, B1plusmap)]}     
+           .separate(1)  
 }   
 else{
     error "ERROR: Argument (--root) must be passed. See USAGE."
@@ -145,10 +148,10 @@ else{
 
 /*Split T1w into three channels
     t1w_pre_ch1 --> mtsat_for_alignment
-    t1w_pre_ch2 --> mtsat_for_bet
+    t1w_pre_ch2 --> t1w_for_bet
     t1w_pre_ch3 --> t1w_post
 */
-t1w.into{t1w_pre_ch1; mtsat_for_bet; t1w_post}
+t1w.into{t1w_pre_ch1; t1w_for_bet; t1w_post}
 
 /* Merge PDw, MTw and T1w for alignment*/
 pdw 
@@ -262,10 +265,10 @@ process Extract_Brain{
         params.USE_BET == true
 
     input:
-        tuple val(sid), file(t1w) from mtsat_for_bet
+        tuple val(sid), file(t1w) from t1w_for_bet
 
     output:
-        tuple val(sid), "${sid}_acq-T1w_mask.nii.gz" optional true into mtsat_from_bet
+        tuple val(sid), "${sid}_acq-T1w_mask.nii.gz" optional true into mask_from_bet
         file "${sid}_acq-T1w_mask.nii.gz"
 
     script:
@@ -282,7 +285,7 @@ process Extract_Brain{
 }
 
 /* Split t1w_post into two to deal with B1map cases */
-t1w_post.into{t1w_post_ch1;t1w_post_ch2}
+t1w_post.into{t1w_post_ch1;t1w_post_ch2; t1w_post_ch3}
 
 /* Split mtsat_from_alignment into two to deal with B1map cases */
 mtsat_from_alignment.into{mfa_ch1;mfa_ch2}
@@ -298,15 +301,69 @@ input data or as empty channels.
 if (!params.USE_BET){
     Channel
         .empty()
-        .set{mtsat_from_bet}
+        .set{mask_from_bet}
 }
 
-/* Split mtsat_from_bet into two to deal with B1map cases later. */
-mtsat_from_bet.into{mtsat_from_bet_ch1;mtsat_from_bet_ch2}
+/* Split mask_from_bet into two to deal with B1map cases later. */
+mask_from_bet.into{mask_from_bet_ch1;mask_from_bet_ch2}
 
 t1wj.into{t1wj_ch1;t1wj_ch2}
 pdwj.into{pdwj_ch1;pdwj_ch2}
 mtwj.into{mtwj_ch1;mtwj_ch2}
+
+t1w_post_ch3
+    .join(b1plus)
+    .set{b1_for_alignment}
+
+/* For now, just use identity transform (i.e. upsample w/o additional transformation).*/
+
+process B1_Align{
+    tag "${sid}"
+
+    when:
+        params.USE_B1 == true
+
+    input:
+        tuple val(sid), file(t1w), file(b1raw) from b1_for_alignment
+
+    output:
+        tuple val(sid), "${sid}_B1plusmap_aligned.nii.gz" into b1_aligned
+
+    script:
+        """
+        antsApplyTransforms -d 3 -e 0 -i $b1raw \
+                            -r $t1w \
+                            -o ${sid}_B1plusmap_aligned.nii.gz \
+                            -t identity
+        """
+
+}
+
+process B1_Smooth_With_Mask{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+
+    when:
+        params.USE_B1 == true && params.USE_BET == true
+
+}
+
+process B1_Smooth_Without_Mask{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+
+    when:
+        params.USE_B1 == true && params.USE_BET == false
+
+    input:
+
+    output:
+
+    script:
+
+
+}
+
 /*Merge tw1_post with mtsat_from_alignment and b1plus.*/
 t1w_post_ch1
     .join(mfa_ch1)
@@ -334,7 +391,7 @@ mtsat_for_fitting_without_b1.into{mtsat_without_b1_bet;mtsat_without_b1}
 WITH B1 MAP
 */
 mtsat_with_b1_bet
-    .join(mtsat_from_bet_ch1)
+    .join(mask_from_bet_ch1)
     .set{mtsat_with_b1_bet_merged}
 
 /* Depeding on the nextflow.config 
@@ -398,7 +455,7 @@ process Fit_MTsat_With_B1map_Without_Bet{
 
 /* We need to join these channels to avoid problems.*/
 mtsat_without_b1_bet
-    .join(mtsat_from_bet_ch2)
+    .join(mask_from_bet_ch2)
     .set{mtsat_without_b1_bet_merged}
 
 process Fit_MTsat_Without_B1map_With_Bet{

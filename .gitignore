@@ -1,0 +1,10 @@
+.nextflow* 
+*.html*
+.*.log*
+.cache/*
+work/*
+errors/
+.dockerignore
+docker/dist
+docker/nextflow
+.node-nextflow*
