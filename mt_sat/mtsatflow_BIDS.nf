@@ -29,14 +29,14 @@ params.root = false
 params.help = false
 
 /* Call to the mt_sat_wrapper.m will be invoked by params.runcmd.
-Depending on the params.PLATFORM selection, params.runcmd 
+Depending on the params.platform selection, params.runcmd 
 may point to MATLAB or Octave. 
 */
-if (params.PLATFORM == "octave"){
+if (params.platform == "octave"){
 
-    if (params.OCTAVE_PATH){
+    if (params.octave_path){
         log.info "Using Octave executable declared in nextflow.config."
-        params.octave = params.OCTAVE_PATH + " --no-gui --eval"
+        params.octave = params.octave_path + " --no-gui --eval"
     }else{
         log.info "Using Octave in Docker or (if local) from the sys path."
         params.octave = "octave --no-gui --eval"
@@ -45,11 +45,11 @@ if (params.PLATFORM == "octave"){
     params.runcmd = params.octave 
 }
 
-if (params.PLATFORM == "matlab"){
+if (params.platform == "matlab"){
    
-    if (params.MATLAB_PATH){
+    if (params.matlab_path){
         log.info "Using MATLAB executable declared in nextflow.config."
-        params.matlab = params.MATLAB_PATH + " -nodisplay -nosplash -nodesktop -r"
+        params.matlab = params.matlab_path + " -nodisplay -nosplash -nodesktop -r"
     }else{
         log.info "Using MATLAB from the sys path."
         params.matlab = "matlab -nodisplay -nosplash -nodesktop -r"
@@ -58,8 +58,8 @@ if (params.PLATFORM == "matlab"){
     params.runcmd = params.matlab
 }
 
-params.wrapper_source_link = "https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m"
-params.wrapper_version_link = 
+params.wrapper_source_link = "https://raw.githubusercontent.com/qMRLab/qMRFlow/master/Wrappers/mt_sat/mt_sat_wrapper.m"
+params.wrapper_version_link = "https://raw.githubusercontent.com/qMRLab/qMRFlow/master/Wrappers/mt_sat/version.txt"
 
 workflow.onComplete {
     log.info "Pipeline completed at: $workflow.complete"
@@ -82,15 +82,15 @@ if(params.help) {
                 "ants_convergence":"$params.ants_convergence",
                 "ants_shrink":"$params.ants_shrink",
                 "ants_smoothing":"$params.ants_smoothing",
-                "use_b1cor":"$params.USE_B1",
-                "b1cor_factor":"$params.COR_B1",
-                "use_bet":"$params.USE_BET",
+                "use_b1cor":"$params.use_b1cor",
+                "b1cor_factor":"$params.b1cor_factor",
+                "use_bet":"$params.use_bet",
                 "bet_recursive":"$params.bet_recursive",
                 "bet_threshold":"$params.bet_threshold",
-                "platform":"$params.PLATFORM",
-                "matlab_path":"$params.MATLAB_PATH",
-                "octave_path":"$params.OCTAVE_PATH",
-                "qmrlab_dir":"$params.qMRLab_DIR"
+                "platform":"$params.platform",
+                "matlab_path":"$params.matlab_path",
+                "octave_path":"$params.octave_path",
+                "qmrlab_dir":"$params.qmrlab_dir"
                 ]
 
     engine = new groovy.text.SimpleTemplateEngine()
@@ -176,9 +176,9 @@ log.info "======="
 log.info ""
 log.info "[GLOBAL]"
 log.info "---------------"
-log.info "Selected platform: $params.PLATFORM"
-log.info "BET enabled: $params.USE_BET"
-log.info "B1+ correction enabled: $params.USE_B1"
+log.info "Selected platform: $params.platform"
+log.info "BET enabled: $params.use_bet"
+log.info "B1+ correction enabled: $params.use_b1cor"
 log.info ""
 log.info "[ANTs Registration]"
 log.info "-------------------"
@@ -195,18 +195,18 @@ log.info "Smoothing sigmas: $params.ants_smoothing"
 log.info ""
 log.info "[FSL BET]"
 log.info "---------------"
-log.info "Enabled: $params.USE_BET"
+log.info "Enabled: $params.use_bet"
 log.info "Fractional intensity threshold: $params.bet_threshold"
 log.info "Robust brain center estimation: $params.bet_recursive"
 log.info ""
 log.info "[qMRLab mt_sat]"
 log.info "---------------"
 log.warn "Acquisition protocols will be read from  sidecar .json files (BIDS)."
-if (params.USE_B1){
+if (params.use_b1cor){
 log.info "B1+ correction has been ENABLED."  
 log.warn "Process will be skipped for participants missing a B1map file."   
-log.info "B1 correction factor: $params.COR_B1"}
-if (!params.USE_B1){
+log.info "B1 correction factor: $params.b1cor_factor"}
+if (!params.use_b1cor){
 log.info "B1+ correction has been DISABLED."
 log.warn "Process will NOT take any (possibly) existing B1maps into account."
 }
@@ -262,7 +262,7 @@ process Extract_Brain{
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
     when:
-        params.USE_BET == true
+        params.use_bet == true
 
     input:
         tuple val(sid), file(t1w) from t1w_for_bet
@@ -298,7 +298,7 @@ only execute if the channel is populated.
 /* We need to conditionally create channels with
 input data or as empty channels.
 */
-if (!params.USE_BET){
+if (!params.use_bet){
     Channel
         .empty()
         .set{mask_from_bet}
@@ -321,7 +321,7 @@ process B1_Align{
     tag "${sid}"
 
     when:
-        params.USE_B1 == true
+        params.use_b1cor == true
 
     input:
         tuple val(sid), file(t1w), file(b1raw) from b1_for_alignment
@@ -344,7 +344,7 @@ process B1_Smooth_With_Mask{
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
     when:
-        params.USE_B1 == true && params.USE_BET == true
+        params.use_b1cor == true && params.use_bet == true
 
 }
 
@@ -353,7 +353,7 @@ process B1_Smooth_Without_Mask{
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
     when:
-        params.USE_B1 == true && params.USE_BET == false
+        params.use_b1cor == true && params.use_bet == false
 
     input:
 
@@ -395,7 +395,7 @@ mtsat_with_b1_bet
     .set{mtsat_with_b1_bet_merged}
 
 /* Depeding on the nextflow.config 
-settings for USE_B1 and USE_BET, one of th
+settings for use_b1cor and use_bet, one of th
 following 4 processes will be executed. 
 */
 
@@ -404,7 +404,7 @@ process Fit_MTsat_With_B1map_With_Bet{
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
     when:
-        params.USE_B1 == true && params.USE_BET == true
+        params.use_b1cor == true && params.use_bet == true
 
     input:
         tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
@@ -421,7 +421,7 @@ process Fit_MTsat_With_B1map_With_Bet{
         """
             wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
-            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.COR_B1,'qMRLab','$params.qMRLab_DIR'); exit();"
+            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qMRLab','$params.qmrlab_dir'); exit();"
         """
 }
 
@@ -430,7 +430,7 @@ process Fit_MTsat_With_B1map_Without_Bet{
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
     when:
-        params.USE_B1 == true && params.USE_BET == false
+        params.use_b1cor == true && params.use_bet == false
 
     input:
         tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
@@ -447,7 +447,7 @@ process Fit_MTsat_With_B1map_Without_Bet{
         """
             wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
-            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.COR_B1,'qMRLab','$params.qMRLab_DIR'); exit();"
+            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.b1cor_factor,'qMRLab','$params.qmrlab_dir'); exit();"
         """
                
 }
@@ -463,7 +463,7 @@ process Fit_MTsat_Without_B1map_With_Bet{
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
     
     when:
-        params.USE_B1 == false && params.USE_BET==true
+        params.use_b1cor == false && params.use_bet==true
 
     input:
         tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
@@ -480,7 +480,7 @@ process Fit_MTsat_Without_B1map_With_Bet{
         """
             wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
-            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qMRLab','$params.qMRLab_DIR'); exit();"
+            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qMRLab','$params.qmrlab_dir'); exit();"
         """
 }
 
@@ -489,7 +489,7 @@ process Fit_MTsat_Without_B1map_Without_Bet{
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
     
     when:
-        params.USE_B1 == false && params.USE_BET==false
+        params.use_b1cor == false && params.use_bet==false
 
     input:
         tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
@@ -506,6 +506,6 @@ process Fit_MTsat_Without_B1map_Without_Bet{
         """
             wget -O mt_sat_wrapper.m https://raw.githubusercontent.com/qMRLab/qMRFlow/master/mt_sat/mt_sat_wrapper.m
 
-            $params.runcmd --no-gui --eval "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qMRLab','$params.qMRLab_DIR'); exit();"
+            $params.runcmd --no-gui --eval "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qMRLab','$params.qmrlab_dir'); exit();"
         """
 }
