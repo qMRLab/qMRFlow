@@ -319,15 +319,18 @@ t1w_post_ch3
 
 process B1_Align{
     tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
     when:
         params.use_b1cor == true
 
     input:
         tuple val(sid), file(t1w), file(b1raw) from b1_for_alignment
+        
 
     output:
         tuple val(sid), "${sid}_B1plusmap_aligned.nii.gz" optional true into b1_aligned
+        file "${sid}_B1plusmap_aligned.nii.gz"
 
     script:
         """
@@ -362,17 +365,17 @@ process B1_Smooth_With_Mask{
         tuple val(sid), file(b1aligned), file(mask) from b1_for_smooth_with_mask
 
     output:
-        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" into b1_filetered 
+        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_w_mask 
         file "${sid}_B1plusmap_filtered.nii.gz"
 
     script: 
         """
-        git clone $params.wrapper_repo 
-        cd qMRWrappers
-        sh init_qmrlab_wrapper.sh $params.wrapper_version 
-        cd filter_map
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            sh init_qmrlab_wrapper.sh $params.wrapper_version 
+            cd ..
 
-        $params.runcmd "filter_map_wrapper('$b1aligned', 'mask', '$mask', 'type','$params.b1_filter_type','order','$params.b1_filter_order','dimension','$params.b1_filter_dimension','size','$params.b1_filter_size','qmrlab_path','$params.qmrlab_path'); exit();" 
+            $params.matlab_path_exception -nodesktop -nosplash -r "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'mask', '$mask', 'type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path_exception','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
         """
 
 }
@@ -388,29 +391,42 @@ process B1_Smooth_Without_Mask{
         tuple val(sid), file(b1aligned) from b1_for_smooth_without_mask
     
     output:
-        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" into b1_filetered 
+        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_wo_mask 
         file "${sid}_B1plusmap_filtered.nii.gz"
         
     script:
     """
-    git clone $params.wrapper_repo 
-    cd qMRWrappers
-    sh init_qmrlab_wrapper.sh $params.wrapper_version 
-    cd filter_map
+        git clone $params.wrapper_repo 
+        cd qMRWrappers
+        sh init_qmrlab_wrapper.sh $params.wrapper_version 
+        cd ..
 
-    $params.runcmd "filter_map_wrapper('$b1aligned', 'type','$params.b1_filter_type','order','$params.b1_filter_order','dimension','$params.b1_filter_dimension','size','$params.b1_filter_size','qmrlab_path','$params.qmrlab_path'); exit();" 
+        $params.runcmd "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'type','$params.b1_filter_type','order','$params.b1_filter_order','dimension','$params.b1_filter_dimension','size','$params.b1_filter_size','qmrlab_path','$params.qmrlab_path','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
     """
 
 }
 
+if (params.use_bet){
 /*Merge tw1_post with mtsat_from_alignment and b1plus.*/
 t1w_post_ch1
     .join(mfa_ch1)
-    .join(b1_filtered)
+    .join(b1_filtered_w_mask)
     .join(t1wj_ch1)
     .join(mtwj_ch1)
     .join(pdwj_ch1)
     .set{mtsat_for_fitting_with_b1}
+}else{
+t1w_post_ch1
+    .join(mfa_ch1)
+    .join(b1_filtered_wo_mask)
+    .join(t1wj_ch1)
+    .join(mtwj_ch1)
+    .join(pdwj_ch1)
+    .set{mtsat_for_fitting_with_b1}
+
+}
+
+
 
 mtsat_for_fitting_with_b1.into{mtsat_with_b1_bet;mtsat_with_b1}
 
@@ -461,9 +477,9 @@ process Fit_MTsat_With_B1map_With_Bet{
             git clone $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd mt_sat 
+            cd ..
 
-            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
         """
 }
 
@@ -490,9 +506,9 @@ process Fit_MTsat_With_B1map_Without_Bet{
             git clone $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd mt_sat 
+            cd ..
 
-            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
         """
                
 }
@@ -526,9 +542,9 @@ process Fit_MTsat_Without_B1map_With_Bet{
             git clone $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd mt_sat 
+            cd ..
 
-            $params.runcmd "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qmrlab_path','$params.qmrlab_path'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
         """
 }
 
@@ -555,8 +571,8 @@ process Fit_MTsat_Without_B1map_Without_Bet{
             git clone $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd mt_sat 
+            cd ..
 
-            $params.runcmd --no-gui --eval "mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qmrlab_path','$params.qmrlab_path'); exit();"
+            $params.runcmd --no-gui --eval "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
         """
 }
