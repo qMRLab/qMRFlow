@@ -358,6 +358,10 @@ process B1_Smooth_With_Mask{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
+    if (!params.matlab_path_exception){
+    container 'qmrlab/minimal:v2.3.1'
+    }
+    
     when:
         params.use_b1cor == true && params.use_bet == true
 
@@ -367,8 +371,10 @@ process B1_Smooth_With_Mask{
     output:
         tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_w_mask 
         file "${sid}_B1plusmap_filtered.nii.gz"
+        file "${sid}_B1plusmap_filtered.json"
 
     script: 
+        if (params.matlab_path_exception){
         """
             git clone $params.wrapper_repo 
             cd qMRWrappers
@@ -377,12 +383,25 @@ process B1_Smooth_With_Mask{
 
             $params.matlab_path_exception -nodesktop -nosplash -r "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'mask', '$mask', 'type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path_exception','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
         """
+        }else{
+        """
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            sh init_qmrlab_wrapper.sh $params.wrapper_version 
+            cd ..
+
+            $params.runcmd "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'mask', '$mask', 'type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
+        """
+
+        }
 
 }
 
 process B1_Smooth_Without_Mask{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+
+    container 'qmrlab/minimal:v2.3.1'
 
     when:
         params.use_b1cor == true && params.use_bet == false
@@ -393,16 +412,29 @@ process B1_Smooth_Without_Mask{
     output:
         tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_wo_mask 
         file "${sid}_B1plusmap_filtered.nii.gz"
+        file "${sid}_B1plusmap_filtered.json"
         
     script:
-    """
-        git clone $params.wrapper_repo 
-        cd qMRWrappers
-        sh init_qmrlab_wrapper.sh $params.wrapper_version 
-        cd ..
+    if (params.matlab_path_exception){
+        """
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            sh init_qmrlab_wrapper.sh $params.wrapper_version 
+            cd ..
 
-        $params.runcmd "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'type','$params.b1_filter_type','order','$params.b1_filter_order','dimension','$params.b1_filter_dimension','size','$params.b1_filter_size','qmrlab_path','$params.qmrlab_path','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
-    """
+            $params.matlab_path_exception -nodesktop -nosplash -r "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned','type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path_exception','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
+        """
+        }else{
+        """
+            git clone $params.wrapper_repo 
+            cd qMRWrappers
+            sh init_qmrlab_wrapper.sh $params.wrapper_version 
+            cd ..
+            
+            $params.runcmd "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
+        """
+
+    }
 
 }
 
