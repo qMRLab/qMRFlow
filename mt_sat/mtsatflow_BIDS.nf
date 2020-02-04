@@ -257,6 +257,7 @@ process Align_Input_Volumes {
         """
 }
 
+
 process Extract_Brain{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
