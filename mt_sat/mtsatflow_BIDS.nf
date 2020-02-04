@@ -606,6 +606,6 @@ process Fit_MTsat_Without_B1map_Without_Bet{
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
 
-            $params.runcmd --no-gui --eval "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
         """
 }
