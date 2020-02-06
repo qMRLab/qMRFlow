@@ -131,7 +131,7 @@ NOTES
 
 - Files should be compressed Nifti files (.nii.gz)
 
-- Timing parameters (e.g. RepetitionTimeExcitation) in the .json files MUST be in milliseconds. 
+- Timing parameters in the .json files MUST be in seconds. 
 
 - Subject IDs are used as the primary process ID and tag throughout the pipeline. 
 
@@ -148,6 +148,7 @@ NOTES
     * Octave/MATLAB (https://www.gnu.org/software/octave/)
                     (https://www.mathworks.com/)    
     * qMRLab > v2.3.1       (https://qmrlab.org)
+    * git
 
 If you have Docker installed, enabling docker option will make use of the 
 following Docker images to execute processes: 
