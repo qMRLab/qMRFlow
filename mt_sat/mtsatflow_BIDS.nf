@@ -235,25 +235,23 @@ process Align_Input_Volumes {
 
     script:
         """
-        antsRegistration -d $params.ants_dim\\ 
-            --float 0\\ 
-            -o [${sid}_mtw_to_t1w_displacement.mat,${sid}_acq-MTon_MTS_aligned.nii.gz]\\ 
-            --transform $params.ants_transform\\ 
-            --metric $params.ants_metric[$t1w,$mtw,$params.ants_metric_weight,\\
-            $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct]\\ 
-            --convergence $params.ants_convergence\\ 
-            --shrink-factors $params.ants_shrink\\ 
-            --smoothing-sigmas $params.ants_smoothing
+        antsRegistration -d $params.ants_dim \
+                            --float 0 \
+                            -o [${sid}_mtw_to_t1w_displacement.mat,${sid}_acq-MTon_MTS_aligned.nii.gz] \
+                            --transform $params.ants_transform \
+                            --metric $params.ants_metric[$t1w,$mtw,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
+                            --convergence $params.ants_convergence \
+                            --shrink-factors $params.ants_shrink \
+                            --smoothing-sigmas $params.ants_smoothing
 
-        antsRegistration -d $params.ants_dim\\ 
-            --float 0\\ 
-            -o [${sid}_pdw_to_t1w_displacement.mat,${sid}_acq-MToff_MTS_aligned.nii.gz]\\ 
-            --transform $params.ants_transform\\ 
-            --metric $params.ants_metric[$t1w,$pdw,$params.ants_metric_weight,\\
-            $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct]\\ 
-            --convergence $params.ants_convergence\\ 
-            --shrink-factors $params.ants_shrink\\ 
-            --smoothing-sigmas $params.ants_smoothing
+        antsRegistration -d $params.ants_dim \
+                            --float 0 \
+                            -o [${sid}_pdw_to_t1w_displacement.mat,${sid}_acq-MToff_MTS_aligned.nii.gz] \
+                            --transform $params.ants_transform \
+                            --metric $params.ants_metric[$t1w,$pdw,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
+                            --convergence $params.ants_convergence \
+                            --shrink-factors $params.ants_shrink \
+                            --smoothing-sigmas $params.ants_smoothing
         """
 }
 

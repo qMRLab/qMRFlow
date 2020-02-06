@@ -4,9 +4,7 @@ https://qmrlab.org
 
 USAGE
 
-nextflow run mtsatflow.nf [OPTIONAL_ARGUMENTS] (--root)
-
-nextflow run mtsatflow_BIDS.nf [OPTIONAL_ARGUMENTS] (--root)
+nextflow run mtrflow_BIDS.nf [OPTIONAL_ARGUMENTS] (--root)
 
 DESCRIPTION
 
@@ -14,45 +12,21 @@ DESCRIPTION
 
 FOLDER ORGANIZATION
 
-BIDS convention                         For mtsatflow_BIDS.nf
+BIDS convention                         For mtrflow_BIDS.nf
 
                                         [root]
                                         ├── sub-01
-                                        │   │── anat
-                                        │   │   ├── sub-01_acq-MTon_MTS.nii.gz
-                                        |   |   ├── sub-01_acq-MTon_MTS.json
-                                        │   │   ├── sub-01_acq-MToff_MTS.nii.gz
-                                        │   │   ├── sub-01_acq-MToff_MTS.json
-                                        │   │   ├── sub-01_acq-T1w_MTS.nii.gz                           
-                                        │   │   └── sub-01_acq-T1w_MTS.json
-                                        │   └── fmap
-                                        │       └── sub-01_B1plusmap.nii.gz (optional)
+                                        │   └── anat
+                                        │       ├── sub-01_acq-MTon_MTR.nii.gz
+                                        |       ├── sub-01_acq-MTon_MTR.json
+                                        │       ├── sub-01_acq-MToff_MTR.nii.gz
+                                        │       └── sub-01_acq-MToff_MTR.json                       
                                         └── sub-02
-                                            │── anat
-                                            │   ├── sub-02_acq-MTon_MTS.nii.gz
-                                            |   ├── sub-02_acq-MTon_MTS.json
-                                            │   ├── sub-02_acq-MToff_MTS.nii.gz
-                                            │   ├── sub-02_acq-MToff_MTS.json
-                                            │   ├── sub-02_acq-T1w_MTS.nii.gz                           
-                                            │   └── sub-02_acq-T1w_MTS.json
-                                            └── fmap
-                                                └── sub-02_B1plusmap.nii.gz (optional)
-
-    Customized convention               For mtsatflow.nf
-
-                                        [root]
-                                        ├── S1
-                                        │   ├── S1_MTw.nii.gz
-                                        │   ├── S1_PDw.nii.gz
-                                        │   ├── S1_T1w.nii.gz 
-                                        │   ├── S1_B1plusmap.nii.gz    (optional)
-                                        │   └── mt_sat_protocol.json   
-                                        └── S2
-                                            ├── S2_MTw.nii.gz
-                                            ├── S2_PDw.nii.gz
-                                            ├── S2_T1w.nii.gz
-                                            ├── S2_B1plusmap.nii.gz    (optional)
-                                            └── mt_sat_protocol.json                                                 
+                                                └── anat
+                                                    ├── sub-02_acq-MTon_MTR.nii.gz
+                                                    ├── sub-02_acq-MTon_MTR.json
+                                                    ├── sub-02_acq-MToff_MTR.nii.gz
+                                                    └── sub-02_acq-MToff_MTR.json           
 
 OPTIONAL ARGUMENTS
 
@@ -103,10 +77,6 @@ OPTIONAL ARGUMENTS
 --ants_smoothing                [MxNxO] Specify the sigma of gaussian smoothing at each level.
                                 Units are given in terms of voxels ('vox') or physical spacing ('mm'). 
                                 Example usage is '4x2x1mm' and '4x2x1vox' where no units implies voxel spacing.
---use_b1cor                     [true/false] Use and RF transmit field to correct for flip 
-                                angle imperfections. 
---b1cor_factor                  [0-1] Correction factor (empirical) for the transmit RF. Only
-                                corrects MTSAT, not T1. Default 0.4. 
 --use_bet                       Use FSL's BET for skull stripping.
 --bet_recursive                 [true/false] This option runs more "robust" brain center estimation.
 --bet_threshold                 [0-1] Fractional intensity threshold (0->1); default=0.45; 
@@ -115,12 +85,7 @@ OPTIONAL ARGUMENTS
 
 NOTES
 
-- Two workflows are implemented:
-    
-    mtsatflow.nf                To process data organized in the customized fashion
-                                described in the FOLDER ORGANIZATION section. 
-
-    mtsatflow_BIDS.nf           To process BIDSified MTsat data. Note that BIDS for 
+    mtrflow_BIDS.nf             To process BIDSified MTR data. Note that BIDS for 
                                 quantitative MRI data is under development as of 
                                 early 2020. You can visit the GitHub project page
                                 [here](https://github.com/bids-standard/bep001). 
@@ -139,7 +104,7 @@ NOTES
   qMRLab containers. 
 
 - All the OPTIONAL ARGUMENTS can be modified in the `nextflow.config` file. The same 
-  config file is consumed by both `mtsatflow.nf` and `mtsatflow_BIDS.nf`.  
+  config file is consumed by `mtrflow_BIDS.nf`.  
 
 - Unless the docker option is enabled in the `nextflow.config`, the following
   dependencies must be installed and added to the system path: 
@@ -168,11 +133,6 @@ following Docker images to execute processes:
 REFERENCES
 
 Please cite the following if you use this module:
-
-    Helms, G. et al. 2008. High-resolution maps of magnetization transfer with inherent correction 
-    for RF inhomogeneity and T1 relaxation obtained from 3D FLASH MRI. Magn. Reson. Med. 60, 1396?1407.
-
-In addition to: 
 
     Karakuzu A. et al. 2019 The qMRLab workflow: From acquisition to publication., ISMRM 27th Annual
     Meeting and Exhibition, Montreal, Canada. 
