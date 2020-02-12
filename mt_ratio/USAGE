@@ -28,6 +28,9 @@ BIDS convention                         For mtrflow_BIDS.nf
                                                     ├── sub-02_acq-MToff_MTR.nii.gz
                                                     └── sub-02_acq-MToff_MTR.json           
 
+NOTE: This workflow can use a subset of the MTsat (`MTS`) data. You can see 
+the folder organization for MTS in `mt_sat/USAGE` in this repository.
+
 OPTIONAL ARGUMENTS
 
 --platform                      ["octave"/"matlab"] Platform choice. 
