@@ -1,5 +1,12 @@
-# mtrflow
-Nextflow pipeline for processing MTRdata using qMRLab 
+```
+           _         __ _               
+          | |       / _| |              
+ _ __ ___ | |_ _ __| |_| | _____      __
+| '_ ` _ \| __| '__|  _| |/ _ \ \ /\ / /
+| | | | | | |_| |  | | | | (_) \ V  V / 
+|_| |_| |_|\__|_|  |_| |_|\___/ \_/\_/ 
+A Nextflow pipeline for processing MTR data in BIDS format using qMRLab.
+```
 
 ## Use with Docker
 

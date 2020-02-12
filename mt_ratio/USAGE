@@ -85,6 +85,8 @@ OPTIONAL ARGUMENTS
 
 NOTES
 
+- BIDS:
+
     mtrflow_BIDS.nf             To process BIDSified MTR data. Note that BIDS for 
                                 quantitative MRI data is under development as of 
                                 early 2020. You can visit the GitHub project page

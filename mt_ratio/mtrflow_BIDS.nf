@@ -1,6 +1,14 @@
 #!/usr/bin/env nextflow
 
 /*
+
+             _           __  _                 
+  _ __ ___  | |_  _ __  / _|| |  ___ __      __
+ | '_ ` _ \ | __|| '__|| |_ | | / _ \\ \ /\ / /
+ | | | | | || |_ | |   |  _|| || (_) |\ V  V / 
+ |_| |_| |_| \__||_|   |_|  |_| \___/  \_/\_/  
+                                               
+
 This workflow contains pre- and post-processing steps to 
 calculate Magnetization Transfer Saturation Index (MTsat) map along
 with a longitudinal relaxation time (T1) map.
