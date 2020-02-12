@@ -4,8 +4,6 @@ https://qmrlab.org
 
 USAGE
 
-nextflow run mtsatflow.nf [OPTIONAL_ARGUMENTS] (--root)
-
 nextflow run mtsatflow_BIDS.nf [OPTIONAL_ARGUMENTS] (--root)
 
 DESCRIPTION
@@ -37,22 +35,6 @@ BIDS convention                         For mtsatflow_BIDS.nf
                                             │   └── sub-02_acq-T1w_MTS.json
                                             └── fmap
                                                 └── sub-02_B1plusmap.nii.gz (optional)
-
-    Customized convention               For mtsatflow.nf
-
-                                        [root]
-                                        ├── S1
-                                        │   ├── S1_MTw.nii.gz
-                                        │   ├── S1_PDw.nii.gz
-                                        │   ├── S1_T1w.nii.gz 
-                                        │   ├── S1_B1plusmap.nii.gz    (optional)
-                                        │   └── mt_sat_protocol.json   
-                                        └── S2
-                                            ├── S2_MTw.nii.gz
-                                            ├── S2_PDw.nii.gz
-                                            ├── S2_T1w.nii.gz
-                                            ├── S2_B1plusmap.nii.gz    (optional)
-                                            └── mt_sat_protocol.json                                                 
 
 OPTIONAL ARGUMENTS
 
@@ -115,10 +97,7 @@ OPTIONAL ARGUMENTS
 
 NOTES
 
-- Two workflows are implemented:
-    
-    mtsatflow.nf                To process data organized in the customized fashion
-                                described in the FOLDER ORGANIZATION section. 
+- BIDS:
 
     mtsatflow_BIDS.nf           To process BIDSified MTsat data. Note that BIDS for 
                                 quantitative MRI data is under development as of 

@@ -1,6 +1,13 @@
-# mtsatflow
-Nextflow pipeline for processing MTSAT data using qMRLab 
+```
+           _             _    __ _               
+          | |           | |  / _| |              
+ _ __ ___ | |_ ___  __ _| |_| |_| | _____      __
+| '_ ` _ \| __/ __|/ _` | __|  _| |/ _ \ \ /\ / /
+| | | | | | |_\__ \ (_| | |_| | | | (_) \ V  V / 
+|_| |_| |_|\__|___/\__,_|\__|_| |_|\___/ \_/\_/  
 
+A Nextflow pipeline for processing MTSAT data in BIDS format using qMRLab.
+```
 ## Use with Docker
 
 1. Install nextflow as decribed in [here](http://nextflow.io)

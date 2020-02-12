@@ -1,6 +1,14 @@
 #!/usr/bin/env nextflow
 
 /*
+
+             _           __  _                 
+  _ __ ___  | |_  _ __  / _|| |  ___ __      __
+ | '_ ` _ \ | __|| '__|| |_ | | / _ \\ \ /\ / /
+ | | | | | || |_ | |   |  _|| || (_) |\ V  V / 
+ |_| |_| |_| \__||_|   |_|  |_| \___/  \_/\_/  
+                                               
+
 This workflow contains pre- and post-processing steps to 
 calculate Magnetization Transfer Saturation Index (MTsat) map along
 with a longitudinal relaxation time (T1) map.
@@ -112,11 +120,11 @@ if(params.root){
     
     /* ==== BIDS: MTRinputs ==== */  
     in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_acq-{MToff,MTon}_MTR.nii*", maxDepth: 2, size: 2, flat: true)
+        .fromFilePairs("$root/**/anat/sub-*_acq-{MToff,MTon}_MT*.nii*", maxDepth: 2, size: 2, flat: true)
     (mtoff, mton) = in_data
         .map{sid, MToff, MTon-> [    tuple(sid, MToff),
                                             tuple(sid, MTon)]}                                   
-        .separate(2)
+        .separate(2) 
 
 }   
 else{
@@ -132,6 +140,14 @@ mton_ch1
 
 log.info "qMRflow: MTR pipeline"
 log.info "======================="
+log.info ""
+log.info "##     ## ######## ########"
+log.info "###   ###    ##    ##     ##"
+log.info "#### ####    ##    ##     ##"
+log.info "## ### ##    ##    ########"
+log.info "##     ##    ##    ##   ##"
+log.info "##     ##    ##    ##    ##"
+log.info "##     ##    ##    ##     ##"
 log.info ""
 log.info "Start time: $workflow.start"
 log.info ""
