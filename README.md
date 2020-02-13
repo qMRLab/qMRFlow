@@ -2,5 +2,8 @@
 
 ## Available methods: 
 
-### [MTsat](https://github.com/qMRLab/qMRFlow/tree/master/mt_sat)
-### [MTR](https://github.com/qMRLab/qMRFlow/tree/master/mt_ratio)
+### Magnetization Transfer
+#### [- MTsat](https://github.com/qMRLab/qMRFlow/tree/master/mt_sat)
+Magnetization Transfer Saturation Index
+#### [- MTR](https://github.com/qMRLab/qMRFlow/tree/master/mt_ratio)
+Magnetization Transfer Ratio 
