@@ -1,3 +1,6 @@
-## Welcome to qMRLab's data-driven workflows powered by nexflow!  
+<img src="/assets/qmrflow_small.png" width="400" height="190" />
 
-<img src="/assets/qmrflow_small.png" width="800" height="380" />
+## Available methods: 
+
+### [MTsat](https://github.com/qMRLab/qMRFlow/tree/master/mt_sat)
+### [MTR](https://github.com/qMRLab/qMRFlow/tree/master/mt_ratio)
