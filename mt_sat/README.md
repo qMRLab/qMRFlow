@@ -50,6 +50,8 @@ docker images
 ```
 6. Run the pipeline: 
 
+Data must be organized in [MTsat BIDS format](https://github.com/qMRLab/qMRFlow/blob/master/mt_sat/USAGE).
+
 ```
 cd /qMRFlow/mt_sat 
 nextflow run mtsatflow_BIDS.nf --root $path_to_your_dataset -with-report report.html
