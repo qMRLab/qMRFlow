@@ -115,7 +115,7 @@ if(params.root){
     /* ==== BIDS: MTSat inputs ==== */  
     /* Here, alphabetical indexes matter. Therefore, MToff -> MTon -> T1w */
     in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_acq-{MToff,MTon,T1w}_MTS.nii.gz", maxDepth: 2, size: 3, flat: true)
+        .fromFilePairs("$root/**/anat/sub-*_flip-{01,02}_mt-{off,on}_MTS.nii.gz", maxDepth: 3, size: 3, flat: true)
     (pdw, mtw, t1w) = in_data
         .map{sid, MToff, MTon, T1w  -> [    tuple(sid, MToff),
                                             tuple(sid, MTon),
@@ -123,7 +123,7 @@ if(params.root){
         .separate(3)
 
     in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_acq-{MToff,MTon,T1w}_MTS.json", maxDepth: 2, size: 3, flat: true)
+        .fromFilePairs("$root/**/anat/sub-*_flip-{01,02}_mt-{off,on}_MTS.json", maxDepth: 3, size: 3, flat: true)
     (pdwj, mtwj, t1wj) = in_data
         .map{sid, MToff, MTon, T1w  -> [    tuple(sid, MToff),
                                             tuple(sid, MTon),
@@ -133,9 +133,9 @@ if(params.root){
     /* ==== BIDS: B1 map ==== */             
     /* Look for B1map in fmap folder */
     b1_data = Channel
-           .fromFilePairs("$root/**/fmap/sub-*_{B1plusmap}.nii.gz", maxDepth:2, size:1, flat:true)   
+           .fromFilePairs("$root/**/fmap/sub-*_TB1map.nii.gz", maxDepth:2, size:1, flat:true)   
     (b1raw) = b1_data       
-           .map{sid, B1plusmap -> [tuple(sid, B1plusmap)]}     
+           .map{sid, TB1map -> [tuple(sid, TB1map)]}     
            .separate(1)  
 }   
 else{
@@ -383,7 +383,7 @@ process B1_Smooth_With_Mask{
     script: 
         if (params.matlab_path_exception){
         """
-            git clone $params.wrapper_repo 
+            git clone -b mt_sat-argparser $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
@@ -392,7 +392,7 @@ process B1_Smooth_With_Mask{
         """
         }else{
         """
-            git clone $params.wrapper_repo 
+            git clone -b mt_sat-argparser $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
@@ -424,7 +424,7 @@ process B1_Smooth_Without_Mask{
     script:
     if (params.matlab_path_exception){
         """
-            git clone $params.wrapper_repo 
+            git clone -b mt_sat-argparser $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
@@ -433,7 +433,7 @@ process B1_Smooth_Without_Mask{
         """
         }else{
         """
-            git clone $params.wrapper_repo 
+            git clone -b mt_sat-argparser $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
@@ -513,7 +513,7 @@ process Fit_MTsat_With_B1map_With_Bet{
 
     script: 
         """
-            git clone $params.wrapper_repo 
+            git clone -b mt_sat-argparser $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
