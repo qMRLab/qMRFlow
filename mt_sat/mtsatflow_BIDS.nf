@@ -513,12 +513,14 @@ process Fit_MTsat_With_B1map_With_Bet{
 
     script: 
         """
-            git clone -b mt_sat-argparser $params.wrapper_repo 
+            git clone $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
 
             $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
 
@@ -548,6 +550,8 @@ process Fit_MTsat_With_B1map_Without_Bet{
             cd ..
 
             $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
                
 }
@@ -584,6 +588,8 @@ process Fit_MTsat_Without_B1map_With_Bet{
             cd ..
 
             $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
 
@@ -613,5 +619,7 @@ process Fit_MTsat_Without_B1map_Without_Bet{
             cd ..
 
             $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
