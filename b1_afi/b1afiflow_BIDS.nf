@@ -273,25 +273,21 @@ if (!params.use_bet){
 /* Split mask_from_bet into two for two Fiting processes. */
 mask_from_bet.into{mask_from_bet_ch1;mask_from_bet_ch2}
 
-if (params.use_bet){
-/*Merge afiData1_post with afiData2_from_alignment and mask.*/
-afiData1_post
-    .join(afiData2_from_alignment)
-    .join(afiData1j)
-    .join(afiData2j)
-    .join(mask_from_bet_ch1)
-    .set{b1afi_for_fitting}
-}else{
+/*Merge afiData1_post with afiData2_from_alignment.*/
+/*Without mask */
 afiData1_post
     .join(afiData2_from_alignment)
     .join(afiData1j)
     .join(afiData2j)
     .set{b1afi_for_fitting}
 
-}
+b1afi_for_fitting.into{b1afi_without_mask;b1afi_for_fitting_ch2}
 
-/* Split b1afi_for_fitting into two to deal with mask cases */
-b1afi_for_fitting.into{b1afi_with_mask;b1afi_without_mask}
+/* With mask */
+b1afi_for_fitting_ch2
+    .join(mask_from_bet_ch2)
+    .set{b1afi_with_mask}
+
 
 /* Depending on the nextflow.config 
 settings for use_bet, one of the
@@ -315,12 +311,9 @@ process Fit_b1afi_With_Bet{
 
     script: 
         """
-            git clone $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
+            cp /usr/local/qMRLab/qMRWrappers/b1_afi/b1_afi_wrapper.m b1_afi_wrapper.m
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$afiData1','$afiData2_reg','$afiData1j','$afiData2j','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2_reg','$afiData1j','$afiData2j','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
