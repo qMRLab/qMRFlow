@@ -9,16 +9,14 @@ Dependencies:
     to be used. 
         - Advanced notmarization tools (ANTs, https://github.com/ANTsX/ANTs)
         - FSL  
-        - qMRLab (https://qmrlab.org) 
+        - qMRLab (https://qmrlab.org) > 2.4.1
         - git     
 
 Docker: 
-        - https://hub.docker.com/u/qmrlab
-        - qmrlab/minimal:v2.3.1
-        - qmrlab/antsfsl:latest
+        - AFI model is not defined yet in version 2.4.1
 
 Author:
-    Agah Karakuzu 2019
+    Agah Karakuzu and Juan José Velázquez Reyes 2021
     agahkarakuzu@gmail.com 
 
 Users: Please see USAGE for further details
@@ -28,7 +26,7 @@ Users: Please see USAGE for further details
 params.root = false 
 params.help = false
 
-/* Call to the mt_sat_wrapper.m will be invoked by params.runcmd.
+/* Call to the b1_afi_wrapper.m will be invoked by params.runcmd.
 Depending on the params.platform selection, params.runcmd 
 may point to MATLAB or Octave. 
 */
@@ -134,16 +132,10 @@ else{
 */ 
 
 /*Split T1w into three channels
-    afiData1_pre_ch1 --> afiData2_for_alignment
     afiData1_pre_ch2 --> afiData1_for_bet
     afiData1_pre_ch3 --> afiData1_post
 */
-afiData1.into{afiData1_pre_ch1; afiData1_for_bet; afiData1_post}
-
-/* Merge afiData1 and afiData2 for alignment*/
-afiData2 
-    .join(afiData1_pre_ch1)
-    .set{afiData2_for_alignment}
+afiData1.into{afiData1_for_bet; afiData1_post}
 
 log.info "qMRflow: b1afi pipeline"
 log.info "======================="
@@ -198,37 +190,6 @@ log.warn "Acquisition protocols will be read from  sidecar .json files (BIDS)."
 log.info ""
 log.info "======================="
 
-/*Perform rigid registration to correct for head movement across scans:
-    - afiData2 (moving) --> afiData1 (fixed)
-*/     
-
-process Align_Input_Volumes {
-    tag "${sid}"
-    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
-
-    input:
-        tuple val(sid), file(afiData1), file(afiData2) from afiData2_for_alignment
-
-    output:
-        tuple val(sid), "${sid}_acq-tr2_TB1AFI_aligned.nii.gz"\
-        into afiData2_from_alignment
-        file "${sid}_acq-tr2_TB1AFI_aligned.nii.gz"
-        file "${sid}_afiData2_to_afiData1_displacement.*.mat"
-
-    script:
-        """
-        antsRegistration -d $params.ants_dim \
-                            --float 0 \
-                            -o [${sid}_afiData2_to_afiData1_displacement.mat,${sid}_acq-tr2_TB1AFI_aligned.nii.gz] \
-                            --transform $params.ants_transform \
-                            --metric $params.ants_metric[$afiData1,$afiData2,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
-                            --convergence $params.ants_convergence \
-                            --shrink-factors $params.ants_shrink \
-                            --smoothing-sigmas $params.ants_smoothing
-        """
-}
-
-
 process Extract_Brain{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
@@ -273,10 +234,10 @@ if (!params.use_bet){
 /* Split mask_from_bet into two for two Fiting processes. */
 mask_from_bet.into{mask_from_bet_ch1;mask_from_bet_ch2}
 
-/*Merge afiData1_post with afiData2_from_alignment.*/
+/*Merge afiData1_post with afiData2.*/
 /*Without mask */
 afiData1_post
-    .join(afiData2_from_alignment)
+    .join(afiData2)
     .join(afiData1j)
     .join(afiData2j)
     .set{b1afi_for_fitting}
@@ -285,7 +246,7 @@ b1afi_for_fitting.into{b1afi_without_mask;b1afi_for_fitting_ch2}
 
 /* With mask */
 b1afi_for_fitting_ch2
-    .join(mask_from_bet_ch2)
+    .join(mask_from_bet_ch1)
     .set{b1afi_with_mask}
 
 
@@ -302,9 +263,10 @@ process Fit_b1afi_With_Bet{
         params.use_bet == true
 
     input:
-        tuple val(sid), file(afiData1), file(afiData2_reg), file(afiData1j), file(afiData2j), file(mask) from b1afi_with_mask
+        tuple val(sid), file(afiData1), file(afiData2), file(afiData1j), file(afiData2j), file(mask) from b1afi_with_mask
         
     output:
+	tuple val(sid), "${sid}_TB1map.nii.gz"
         file "${sid}_TB1map.nii.gz" 
         file "${sid}_TB1map.json" 
         file "${sid}_b1_afi.qmrlab.mat"
@@ -313,7 +275,7 @@ process Fit_b1afi_With_Bet{
         """
             cp /usr/local/qMRLab/qMRWrappers/b1_afi/b1_afi_wrapper.m b1_afi_wrapper.m
 
-            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2_reg','$afiData1j','$afiData2j','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
@@ -327,9 +289,10 @@ process Fit_b1afi_Without_Bet{
         params.use_bet == false
 
     input:
-        tuple val(sid), file(afiData1), file(afiData2_reg), file(afiData1j), file(afiData2j) from b1afi_without_mask
+        tuple val(sid), file(afiData1), file(afiData2), file(afiData1j), file(afiData2j) from b1afi_without_mask
 
     output:
+	tuple val(sid), "${sid}_TB1map.nii.gz"
         file "${sid}_TB1map.nii.gz"  
         file "${sid}_TB1map.json" 
         file "${sid}_b1_afi.qmrlab.mat"
@@ -338,102 +301,10 @@ process Fit_b1afi_Without_Bet{
         """
             cp /usr/local/qMRLab/qMRWrappers/b1_afi/b1_afi_wrapper.m b1_afi_wrapper.m
 
-            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2_reg','$afiData1j','$afiData2j','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
                
 }
 
-
-
-/*
-b1map_raw
-   .join(mask_from_bet_ch2)
-   .set{b1_for_smooth_with_mask}
-            
-process B1_Smooth_With_Mask{
-    tag "${sid}"
-    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
-
-    if (!params.matlab_path_exception){
-    container 'qmrlab/minimal:v2.3.1'
-    }
-    
-    when:
-        params.use_b1cor == true && params.use_bet == true
-
-    input:
-        tuple val(sid), file(b1aligned), file(mask) from b1_for_smooth_with_mask
-
-    output:
-        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_w_mask 
-        file "${sid}_B1plusmap_filtered.nii.gz"
-        file "${sid}_B1plusmap_filtered.json"
-
-    script: 
-        if (params.matlab_path_exception){
-        """
-            git clone -b mt_sat-argparser $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
-
-            $params.matlab_path_exception -nodesktop -nosplash -r "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'mask', '$mask', 'type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path_exception','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
-        """
-        }else{
-        """
-            git clone -b mt_sat-argparser $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
-
-            $params.runcmd "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'mask', '$mask', 'type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
-        """
-
-        }
-
-}
-
-process B1_Smooth_Without_Mask{
-    tag "${sid}"
-    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
-
-    container 'qmrlab/minimal:v2.3.1'
-
-    when:
-        params.use_b1cor == true && params.use_bet == false
-
-    input:
-        tuple val(sid), file(b1aligned) from b1_for_smooth_without_mask
-    
-    output:
-        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_wo_mask 
-        file "${sid}_B1plusmap_filtered.nii.gz"
-        file "${sid}_B1plusmap_filtered.json"
-        
-    script:
-    if (params.matlab_path_exception){
-        """
-            git clone -b mt_sat-argparser $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
-
-            $params.matlab_path_exception -nodesktop -nosplash -r "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned','type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path_exception','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
-        """
-        }else{
-        """
-            git clone -b mt_sat-argparser $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
-            
-            $params.runcmd "addpath(genpath('qMRWrappers')); filter_map_wrapper('$b1aligned', 'type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path','siemens','$params.b1_filter_siemens', 'sid','${sid}'); exit();" 
-        """
-
-    }
-
-}
-
-*/
