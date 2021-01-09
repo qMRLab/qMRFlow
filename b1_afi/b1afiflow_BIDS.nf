@@ -275,7 +275,7 @@ process Fit_b1afi_With_Bet{
         """
             cp /usr/local/qMRLab/qMRWrappers/b1_afi/b1_afi_wrapper.m b1_afi_wrapper.m
 
-            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','mask','$mask','b1filter','$params.b1_filter','type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path','sid','${sid}','containerType','$workflow.containerEngine', 'containerTag','$params.containerTag','description','$params.description','datasetDOI','$params.datasetDOI','datasetURL','$params.datasetURL','datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
@@ -301,7 +301,7 @@ process Fit_b1afi_Without_Bet{
         """
             cp /usr/local/qMRLab/qMRWrappers/b1_afi/b1_afi_wrapper.m b1_afi_wrapper.m
 
-            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','b1filter','$params.b1_filter','type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size, 'qmrlab_path','$params.qmrlab_path','sid','${sid}','containerType','$workflow.containerEngine', 'containerTag','$params.containerTag','description','$params.description','datasetDOI','$params.datasetDOI','datasetURL','$params.datasetURL','datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
