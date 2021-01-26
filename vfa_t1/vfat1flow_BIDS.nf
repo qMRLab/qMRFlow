@@ -2,8 +2,7 @@
 
 /*
 This workflow contains pre- and post-processing steps to 
-calculate Magnetization Transfer Saturation Index (MTsat) map along
-with a longitudinal relaxation time (T1) map.
+calculate Variable Flip Angle T1 (VFAT1) map
 
 Dependencies: 
     These dependencies must be installed if Docker is not going
@@ -29,7 +28,7 @@ Users: Please see USAGE for further details
 params.root = false 
 params.help = false
 
-/* Call to the mt_sat_wrapper.m will be invoked by params.runcmd.
+/* Call to the vfa_t1_wrapper.m will be invoked by params.runcmd.
 Depending on the params.platform selection, params.runcmd 
 may point to MATLAB or Octave. 
 */
@@ -112,28 +111,26 @@ if(params.root){
     log.info "Input: $params.root"
     root = file(params.root)
     
-    /* ==== BIDS: MTSat inputs ==== */  
+    /* ==== BIDS: VFAT1 inputs ==== */  
     /* Here, alphabetical indexes matter. Therefore, MToff -> MTon -> T1w */
     in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_acq-{MToff,MTon,T1w}_MTS.nii.gz", maxDepth: 2, size: 3, flat: true)
-    (pdw, mtw, t1w) = in_data
-        .map{sid, MToff, MTon, T1w  -> [    tuple(sid, MToff),
-                                            tuple(sid, MTon),
-                                            tuple(sid, T1w)]}                                   
-        .separate(3)
+        .fromFilePairs("$root/**/anat/sub-*_fa-{1,2}_VFA.nii.gz", maxDepth: 4, size: 2, flat: true)
+    (vfa1, vfa2) = in_data
+        .map{sid, vfa1, vfa2  -> [    tuple(sid, vfa1),
+                                      tuple(sid, vfa2)]}                                   
+        .separate(2)
 
     in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_acq-{MToff,MTon,T1w}_MTS.json", maxDepth: 2, size: 3, flat: true)
-    (pdwj, mtwj, t1wj) = in_data
-        .map{sid, MToff, MTon, T1w  -> [    tuple(sid, MToff),
-                                            tuple(sid, MTon),
-                                            tuple(sid, T1w)]}                                   
-        .separate(3)    
+        .fromFilePairs("$root/**/anat/sub-*_fa-{1,2}_VFA.json", maxDepth: 4, size: 2, flat: true)
+    (vfa1j, vfa2j) = in_data
+        .map{sid, vfa1, vfa2  -> [    tuple(sid, vfa1),
+                                      tuple(sid, vfa2)]}                                   
+        .separate(2)    
 
     /* ==== BIDS: B1 map ==== */             
     /* Look for B1map in fmap folder */
     b1_data = Channel
-           .fromFilePairs("$root/**/fmap/sub-*_{B1plusmap}.nii.gz", maxDepth:2, size:1, flat:true)   
+           .fromFilePairs("$root/**/fmap/sub-*_TB1map.nii.gz", maxDepth:4, size:1, flat:true)   
     (b1raw) = b1_data       
            .map{sid, B1plusmap -> [tuple(sid, B1plusmap)]}     
            .separate(1)  
@@ -146,20 +143,19 @@ else{
   to the same process accurately, these channels must be joined. 
 */ 
 
-/*Split T1w into three channels
-    t1w_pre_ch1 --> mtsat_for_alignment
-    t1w_pre_ch2 --> t1w_for_bet
-    t1w_pre_ch3 --> t1w_post
+/*Split vfa1 into three channels
+    vfa1_pre_ch1 --> vfat1_for_alignment
+    vfa1_pre_ch2 --> vfa1_for_bet
+    vfa1_pre_ch3 --> vfa1_post
 */
-t1w.into{t1w_pre_ch1; t1w_for_bet; t1w_post}
+vfa1.into{vfa1_pre_ch1; vfa1_for_bet; vfa1_post}
 
 /* Merge PDw, MTw and T1w for alignment*/
-pdw 
-    .join(mtw)
-    .join(t1w_pre_ch1)
-    .set{mtsat_for_alignment}
+vfa2 
+    .join(vfa1_pre_ch1)
+    .set{vfat1_for_alignment}
 
-log.info "qMRflow: MTsat pipeline"
+log.info "qMRflow: VFAT1 pipeline"
 log.info "======================="
 log.info ""
 log.info "##     ## ########   ###   ########  ##"
@@ -207,7 +203,7 @@ log.info "Enabled: $params.use_bet"
 log.info "Fractional intensity threshold: $params.bet_threshold"
 log.info "Robust brain center estimation: $params.bet_recursive"
 log.info ""
-log.info "[qMRLab mt_sat]"
+log.info "[qMRLab vfa_t1]"
 log.info "---------------"
 log.warn "Acquisition protocols will be read from  sidecar .json files (BIDS)."
 if (params.use_b1cor){
@@ -222,8 +218,7 @@ log.info ""
 log.info "======================="
 
 /*Perform rigid registration to correct for head movement across scans:
-    - MTw (moving) --> T1w (fixed)
-    - PDw (moving) --> T1w (fixed)
+    - vfa2 (moving) --> vfa1 (fixed)
 */     
 
 process Align_Input_Volumes {
@@ -231,32 +226,21 @@ process Align_Input_Volumes {
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
     input:
-        tuple val(sid), file(pdw), file(mtw), file(t1w) from mtsat_for_alignment
+        tuple val(sid), file(vfa2), file(vfa1) from vfat1_for_alignment
 
     output:
-        tuple val(sid), "${sid}_acq-MTon_MTS_aligned.nii.gz", "${sid}_acq-MToff_MTS_aligned.nii.gz"\
-        into mtsat_from_alignment
-        file "${sid}_acq-MTon_MTS_aligned.nii.gz"
-        file "${sid}_acq-MToff_MTS_aligned.nii.gz"
-        file "${sid}_mtw_to_t1w_displacement.*.mat"
-        file "${sid}_pdw_to_t1w_displacement.*.mat"
+        tuple val(sid), "${sid}_fa-2_VFA_aligned.nii.gz"\
+        into vfat1_from_alignment
+        file "${sid}_fa-2_VFA_aligned.nii.gz"
+        file "${sid}_vfa2_to_vfa1_displacement.*.mat"
 
     script:
         """
         antsRegistration -d $params.ants_dim \
                             --float 0 \
-                            -o [${sid}_mtw_to_t1w_displacement.mat,${sid}_acq-MTon_MTS_aligned.nii.gz] \
+                            -o [${sid}_vfa2_to_vfa1_displacement.mat,${sid}_fa-2_VFA_aligned.nii.gz] \
                             --transform $params.ants_transform \
-                            --metric $params.ants_metric[$t1w,$mtw,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
-                            --convergence $params.ants_convergence \
-                            --shrink-factors $params.ants_shrink \
-                            --smoothing-sigmas $params.ants_smoothing
-
-        antsRegistration -d $params.ants_dim \
-                            --float 0 \
-                            -o [${sid}_pdw_to_t1w_displacement.mat,${sid}_acq-MToff_MTS_aligned.nii.gz] \
-                            --transform $params.ants_transform \
-                            --metric $params.ants_metric[$t1w,$pdw,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
+                            --metric $params.ants_metric[$vfa1,$vfa2,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
                             --convergence $params.ants_convergence \
                             --shrink-factors $params.ants_shrink \
                             --smoothing-sigmas $params.ants_smoothing
@@ -272,30 +256,30 @@ process Extract_Brain{
         params.use_bet == true
 
     input:
-        tuple val(sid), file(t1w) from t1w_for_bet
+        tuple val(sid), file(vfa1) from vfa1_for_bet
 
     output:
-        tuple val(sid), "${sid}_acq-T1w_mask.nii.gz" optional true into mask_from_bet
-        file "${sid}_acq-T1w_mask.nii.gz"
+        tuple val(sid), "${sid}_fa-1_mask.nii.gz" optional true into mask_from_bet
+        file "${sid}_fa-1_mask.nii.gz"
 
     script:
          if (params.bet_recursive){
         """    
-        bet $t1w ${sid}_acq-T1w.nii.gz -m -R -n -f $params.bet_threshold
+        bet $vfa1 ${sid}_fa-1.nii.gz -m -R -n -f $params.bet_threshold
         """}
         else{
         """    
-        bet $t1w ${sid}_acq-T1w.nii.gz -m -n -f $params.bet_threshold
+        bet $vfa1 ${sid}_fa-1.nii.gz -m -n -f $params.bet_threshold
         """
         }
 
 }
 
-/* Split t1w_post into two to deal with B1map cases */
-t1w_post.into{t1w_post_ch1;t1w_post_ch2; t1w_post_ch3}
+/* Split vfa1_post into two to deal with B1map cases */
+vfa1_post.into{vfa1_post_ch1;vfa1_post_ch2; vfa1_post_ch3}
 
-/* Split mtsat_from_alignment into two to deal with B1map cases */
-mtsat_from_alignment.into{mfa_ch1;mfa_ch2}
+/* Split vfat1_from_alignment into two to deal with B1map cases */
+vfat1_from_alignment.into{vfa_ch1;vfa_ch2}
 
 /* There is no input optional true concept in nextflow
 The process consuming the individual input channels will 
@@ -314,11 +298,10 @@ if (!params.use_bet){
 /* Split mask_from_bet into two to deal with B1map cases later. */
 mask_from_bet.into{mask_from_bet_ch1;mask_from_bet_ch2;mask_from_bet_ch3}
 
-t1wj.into{t1wj_ch1;t1wj_ch2}
-pdwj.into{pdwj_ch1;pdwj_ch2}
-mtwj.into{mtwj_ch1;mtwj_ch2}
+vfa1j.into{vfa1j_ch1;vfa1j_ch2}
+vfa2j.into{vfa2j_ch1;vfa2j_ch2}
 
-t1w_post_ch3
+vfa1_post_ch3
     .join(b1raw)
     .set{b1_for_alignment}
 
@@ -332,18 +315,18 @@ process B1_Align{
         params.use_b1cor == true
 
     input:
-        tuple val(sid), file(t1w), file(b1raw) from b1_for_alignment
+        tuple val(sid), file(vfa1), file(b1raw) from b1_for_alignment
         
 
     output:
-        tuple val(sid), "${sid}_B1plusmap_aligned.nii.gz" optional true into b1_aligned
-        file "${sid}_B1plusmap_aligned.nii.gz"
+        tuple val(sid), "${sid}_TB1map_aligned.nii.gz" optional true into b1_aligned
+        file "${sid}_TB1map_aligned.nii.gz"
 
     script:
         """
         antsApplyTransforms -d 3 -e 0 -i $b1raw \
-                            -r $t1w \
-                            -o ${sid}_B1plusmap_aligned.nii.gz \
+                            -r $vfa1 \
+                            -o ${sid}_TB1map_aligned.nii.gz \
                             -t identity
         """
 
@@ -376,9 +359,9 @@ process B1_Smooth_With_Mask{
         tuple val(sid), file(b1aligned), file(mask) from b1_for_smooth_with_mask
 
     output:
-        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_w_mask 
-        file "${sid}_B1plusmap_filtered.nii.gz"
-        file "${sid}_B1plusmap_filtered.json"
+        tuple val(sid), "${sid}_TB1map_filtered.nii.gz" optional true into b1_filtered_w_mask 
+        file "${sid}_TB1map_filtered.nii.gz"
+        file "${sid}_TB1map_filtered.json"
 
     script: 
         if (params.matlab_path_exception){
@@ -417,9 +400,9 @@ process B1_Smooth_Without_Mask{
         tuple val(sid), file(b1aligned) from b1_for_smooth_without_mask
     
     output:
-        tuple val(sid), "${sid}_B1plusmap_filtered.nii.gz" optional true into b1_filtered_wo_mask 
-        file "${sid}_B1plusmap_filtered.nii.gz"
-        file "${sid}_B1plusmap_filtered.json"
+        tuple val(sid), "${sid}_TB1map_filtered.nii.gz" optional true into b1_filtered_wo_mask 
+        file "${sid}_TB1map_filtered.nii.gz"
+        file "${sid}_TB1map_filtered.json"
         
     script:
     if (params.matlab_path_exception){
@@ -446,54 +429,49 @@ process B1_Smooth_Without_Mask{
 }
 
 if (params.use_bet){
-/*Merge tw1_post with mtsat_from_alignment and b1plus.*/
-t1w_post_ch1
-    .join(mfa_ch1)
+/*Merge tw1_post with vfat1_from_alignment and b1plus.*/
+vfa1_post_ch1
+    .join(vfa_ch1)
     .join(b1_filtered_w_mask)
-    .join(t1wj_ch1)
-    .join(mtwj_ch1)
-    .join(pdwj_ch1)
-    .set{mtsat_for_fitting_with_b1}
+    .join(vfa1j_ch1)
+    .join(vfa2j_ch1)
+    .set{vfat1_for_fitting_with_b1}
 }else{
-t1w_post_ch1
-    .join(mfa_ch1)
+vfa1_post_ch1
+    .join(vfa_ch1)
     .join(b1_filtered_wo_mask)
-    .join(t1wj_ch1)
-    .join(mtwj_ch1)
-    .join(pdwj_ch1)
-    .set{mtsat_for_fitting_with_b1}
+    .join(vfa1j_ch1)
+    .join(vfa2j_ch1)
+    .set{vfat1_for_fitting_with_b1}
 
 }
 
+vfat1_for_fitting_with_b1.into{vfat1_with_b1_bet;vfat1_with_b1}
 
-
-mtsat_for_fitting_with_b1.into{mtsat_with_b1_bet;mtsat_with_b1}
-
-/*Merge tw1_post with mtsat_from_alignment only.
+/*Merge vfa1_post with vfat1_from_alignment only.
 WITHOUT B1 MAP
 */
-t1w_post_ch2
-    .join(mfa_ch2)
-    .join(t1wj_ch2)
-    .join(mtwj_ch2)
-    .join(pdwj_ch2)
-    .set{mtsat_for_fitting_without_b1}
+vfa1_post_ch2
+    .join(vfa_ch2)
+    .join(vfa1j_ch2)
+    .join(vfa2j_ch2)
+    .set{vfat1_for_fitting_without_b1}
 
-mtsat_for_fitting_without_b1.into{mtsat_without_b1_bet;mtsat_without_b1}
+vfat1_for_fitting_without_b1.into{vfat1_without_b1_bet;vfat1_without_b1}
 
 /* We need to join these channels to avoid problems.
 WITH B1 MAP
 */
-mtsat_with_b1_bet
+vfat1_with_b1_bet
     .join(mask_from_bet_ch1)
-    .set{mtsat_with_b1_bet_merged}
+    .set{vfat1_with_b1_bet_merged}
 
 /* Depeding on the nextflow.config 
 settings for use_b1cor and use_bet, one of th
 following 4 processes will be executed. 
 */
 
-process Fit_MTsat_With_B1map_With_Bet{
+process Fit_VFAT1_With_B1map_With_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
@@ -501,28 +479,25 @@ process Fit_MTsat_With_B1map_With_Bet{
         params.use_b1cor == true && params.use_bet == true
 
     input:
-        tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
-        file(b1map), file(t1wj), file(mtwj), file(pdwj), file(mask) from mtsat_with_b1_bet_merged
+        tuple val(sid), file(vfa1), file(vfa2_reg),\
+        file(b1map), file(vfa1j), file(vfa2j), file(mask) from vfat1_with_b1_bet_merged
         
     output:
         file "${sid}_T1map.nii.gz" 
-        file "${sid}_MTsat.nii.gz"
+        file "${sid}_M0map.nii.gz"
         file "${sid}_T1map.json" 
-        file "${sid}_MTsat.json"  
-        file "${sid}_mt_sat.qmrlab.mat"
+        file "${sid}_M0map.json"  
+        file "${sid}_vfa_t1.qmrlab.mat"
 
     script: 
         """
-            git clone $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+            $params.runcmd "requiredArgs_nii = {'$vfa1, '$vfa2_reg'}; requiredArgs_jsn = {'$vfa1j', '$vfa2j'}; vfa_t1_wrapper2(requiredArgs_nii,requiredArgs_jsn,'mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
         """
 }
 
-process Fit_MTsat_With_B1map_Without_Bet{
+process Fit_VFAT1_With_B1map_Without_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
@@ -530,35 +505,32 @@ process Fit_MTsat_With_B1map_Without_Bet{
         params.use_b1cor == true && params.use_bet == false
 
     input:
-        tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
-        file(b1map), file(t1wj), file(mtwj), file(pdwj) from mtsat_with_b1
+        tuple val(sid), file(vfa1), file(vfa2_reg),\
+        file(b1map), file(vfa1j), file(vfa2j) from vfat1_with_b1
 
     output:
         file "${sid}_T1map.nii.gz" 
-        file "${sid}_MTsat.nii.gz" 
+        file "${sid}_M0map.nii.gz" 
         file "${sid}_T1map.json" 
-        file "${sid}_MTsat.json" 
-        file "${sid}_mt_sat.qmrlab.mat"
+        file "${sid}_M0map.json" 
+        file "${sid}_vfa_t1.qmrlab.mat"
 
     script: 
         """
-            git clone $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+            $params.runcmd "requiredArgs_nii = {'$vfa1, '$vfa2_reg'}; requiredArgs_jsn = {'$vfa1j', '$vfa2j'}; vfa_t1_wrapper2(requiredArgs_nii,requiredArgs_jsn,'b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
         """
                
 }
 
 
 /* We need to join these channels to avoid problems.*/
-mtsat_without_b1_bet
+vfat1_without_b1_bet
     .join(mask_from_bet_ch2)
-    .set{mtsat_without_b1_bet_merged}
+    .set{vfat1_without_b1_bet_merged}
 
-process Fit_MTsat_Without_B1map_With_Bet{
+process Fit_VFAT1_Without_B1map_With_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
     
@@ -566,28 +538,25 @@ process Fit_MTsat_Without_B1map_With_Bet{
         params.use_b1cor == false && params.use_bet==true
 
     input:
-        tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
-        file(t1wj), file(mtwj), file(pdwj), file(mask) from mtsat_without_b1_bet_merged
+        tuple val(sid), file(vfa1), file(vfa2_reg),\
+        file(vfa1j), file(vfa2j), file(mask) from vfat1_without_b1_bet_merged
 
     output:
         file "${sid}_T1map.nii.gz" 
-        file "${sid}_MTsat.nii.gz" 
+        file "${sid}_M0map.nii.gz" 
         file "${sid}_T1map.json" 
-        file "${sid}_MTsat.json" 
-        file "${sid}_mt_sat.qmrlab.mat"
+        file "${sid}_M0map.json" 
+        file "${sid}_vfa_t1.qmrlab.mat"
 
     script: 
         """
-            git clone $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+            $params.runcmd "requiredArgs_nii = {'$vfa1, '$vfa2_reg'}; requiredArgs_jsn = {'$vfa1j', '$vfa2j'}; vfa_t1_wrapper2(requiredArgs_nii, requiredArgs_jsn, 'mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
         """
 }
 
-process Fit_MTsat_Without_B1map_Without_Bet{
+process Fit_VFAT1_Without_B1map_Without_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
     
@@ -595,23 +564,22 @@ process Fit_MTsat_Without_B1map_Without_Bet{
         params.use_b1cor == false && params.use_bet==false
 
     input:
-        tuple val(sid), file(t1w), file(mtw_reg), file(pdw_reg),\
-        file(t1wj), file(mtwj), file(pdwj) from mtsat_without_b1
+        tuple val(sid), file(vfa1), file(vfa2_reg),\
+        file(vfa1j), file(vfa2j) from vfat1_without_b1
 
     output:
         file "${sid}_T1map.nii.gz" 
-        file "${sid}_MTsat.nii.gz"
+        file "${sid}_M0map.nii.gz"
         file "${sid}_T1map.json" 
-        file "${sid}_MTsat.json"  
-        file "${sid}_mt_sat.qmrlab.mat"
+        file "${sid}_M0map.json"  
+        file "${sid}_vfa_t1.qmrlab.mat"
 
     script: 
         """
-            git clone $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','qmrlab_path','$params.qmrlab_path', 'sid','${sid}'); exit();"
+            $params.runcmd "requiredArgs_nii = {'$vfa1, '$vfa2_reg'}; requiredArgs_jsn = {'$vfa1j', '$vfa2j'}; vfa_t1_wrapper2(requiredArgs_nii,requiredArgs_jsn,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
