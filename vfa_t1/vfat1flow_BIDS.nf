@@ -113,23 +113,29 @@ if(params.root){
     
     /* ==== BIDS: VFAT1 inputs ==== */  
     /* Here, alphabetical indexes matter. Therefore, MToff -> MTon -> T1w */
-    in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_fa-[0-9]_VFA.nii.gz", maxDepth: 4, size: -1, flat: true)
-	.flatten()
+    in_dataNii = Channel
+        .fromFilePairs("$root/**/anat/sub-*_fa-[0-9]_VFA.nii.gz", maxDepth: 4, size: -1, flat: false)
+	.transpose()
 	.view{"- $it"}
 
-    in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_fa-*_VFA.json", maxDepth: 4, size: -1)
-    dataJSON = in_data
-	.map{sid, x -> [tuple(sid, x)]}
+    in_dataNii.into{dataNii_ch1; dataNii_ch2}
+
+    vfa1 = dataNii_ch1
+	.first()
+	.view{"- $it"}
+
+    in_dataJSON = Channel
+        .fromFilePairs("$root/**/anat/sub-*_fa-[0-9]_VFA.json", maxDepth: 4, size: -1, flat: false)
+	.transpose()
 
     /* ==== BIDS: B1 map ==== */             
     /* Look for B1map in fmap folder */
     b1_data = Channel
-           .fromFilePairs("$root/**/fmap/sub-*_TB1map.nii.gz", maxDepth:4, size:1, flat:true)   
+        .fromFilePairs("$root/**/fmap/sub-*_TB1map.nii.gz", maxDepth:4, size:1, flat:true)   
     (b1raw) = b1_data       
-           .map{sid, B1plusmap -> [tuple(sid, B1plusmap)]}     
-           .separate(1)  
+        .map{sid, B1plusmap -> [tuple(sid, B1plusmap)]}     
+        .separate(1)
+	   
 }   
 else{
     error "ERROR: Argument (--root) must be passed. See USAGE."
@@ -197,11 +203,6 @@ log.warn "Process will NOT take any (possibly) existing B1maps into account."
 log.info ""
 log.info "======================="
 
-Channel
-	.from('foo', 'bar', 'zoo')
-	.view{"- $it"}
-
-/*
 vfa1.into{vfa1_ch1; vfa1_ch2}
 
 process Extract_Brain{
@@ -230,7 +231,37 @@ process Extract_Brain{
         }
 
 }
-*/
+
+process Fit_VFAT1_Without_B1map_Without_Bet{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    
+    when:
+        params.use_b1cor == false && params.use_bet==false
+
+    input:
+        tuple val(sid), file('dataNii') from dataNii_ch2
+	tuple val(sid), file('dataJson') from in_dataJSON
+
+    output:
+        file "${sid}_T1map.nii.gz" 
+        file "${sid}_M0map.nii.gz"
+        file "${sid}_T1map.json" 
+        file "${sid}_M0map.json"  
+        file "${sid}_vfa_t1.qmrlab.mat"
+
+    script: 
+        """
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+
+            $params.runcmd "vfa_t1_wrapper2(dataNii,dataJson,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
+        """
+}
+
+
+
 
 
 
