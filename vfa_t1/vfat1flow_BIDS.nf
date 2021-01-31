@@ -118,7 +118,7 @@ if(params.root){
 	.transpose()
 	.view{"- $it"}
 
-    in_dataNii.into{dataNii_ch1; dataNii_ch2}
+    in_dataNii.into{dataNii_ch1; dataNii_ch2; in_ch3}
 
     vfa1 = dataNii_ch1
 	.first()
@@ -126,7 +126,6 @@ if(params.root){
 
     in_dataJSON = Channel
         .fromFilePairs("$root/**/anat/sub-*_fa-[0-9]_VFA.json", maxDepth: 4, size: -1, flat: false)
-	.transpose()
 
     /* ==== BIDS: B1 map ==== */             
     /* Look for B1map in fmap folder */
@@ -232,6 +231,10 @@ process Extract_Brain{
 
 }
 
+test = in_ch3.groupTuple()
+	.view{"- $it"}
+
+
 process Fit_VFAT1_Without_B1map_Without_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
@@ -240,8 +243,8 @@ process Fit_VFAT1_Without_B1map_Without_Bet{
         params.use_b1cor == false && params.use_bet==false
 
     input:
-        tuple val(sid), file('dataNii') from dataNii_ch2
-	tuple val(sid), file('dataJson') from in_dataJSON
+        tuple val(sid), file(data1) from test
+	tuple val(sid), file(data2) from in_dataJSON
 
     output:
         file "${sid}_T1map.nii.gz" 
@@ -254,7 +257,7 @@ process Fit_VFAT1_Without_B1map_Without_Bet{
         """
             cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
 
-            $params.runcmd "vfa_t1_wrapper2(dataNii,dataJson,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "requiredArgs_nii = split('$data1'); requiredArgs_jsn = split('$data2'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
