@@ -114,7 +114,7 @@ if(params.root){
     /* ==== BIDS: VFAT1 inputs ==== */  
     /* Here, alphabetical indexes matter. Therefore, MToff -> MTon -> T1w */
     in_dataNii = Channel
-        .fromFilePairs("$root/**/anat/sub-*_fa-[0-9]_VFA.nii.gz", maxDepth: 4, size: -1, flat: false)
+        .fromFilePairs("$root/**/anat/sub-*_flip-[0-9]_VFA.nii.gz", maxDepth: 4, size: -1, flat: false)
 	.transpose()
 	.view{"- $it"}
 
@@ -131,7 +131,7 @@ if(params.root){
 	.view{"- $it"}
 
     in_dataJSON = Channel
-        .fromFilePairs("$root/**/anat/sub-*_fa-[0-9]_VFA.json", maxDepth: 4, size: -1, flat: false)
+        .fromFilePairs("$root/**/anat/sub-*_flip-[0-9]_VFA.json", maxDepth: 4, size: -1, flat: false)
 
     /* ==== BIDS: B1 map ==== */             
     /* Look for B1map in fmap folder */
@@ -236,8 +236,11 @@ process Extract_Brain{
 
 }
 
-test2 = in_ch4.groupTuple()
-	.view{"- $it"}
+/*
+dataNii_ch2
+    .combine(vfa1_to_ants)
+    .view{"- $it"}
+*/
 
 process Align_Input_Volumes {
     tag "${sid}"
@@ -248,16 +251,16 @@ process Align_Input_Volumes {
 	each fixed from vfa1_to_ants
 
     output:
-        tuple val(sid), "${sid}_fa-?_VFA_aligned.nii.gz"\
+        tuple val(sid), "${moving.simpleName}_aligned.nii.gz"\
         into vfa_aligned
-        file "${sid}_fa-?_VFA_aligned.nii.gz"
-        file "${sid}_vfa?_to_vfa1_displacement.*.mat"
+        file "${moving.simpleName}_aligned.nii.gz"
+        file "${moving.simpleName}_to_vfa1_displacement.*.mat"
 
     script:
         """
         antsRegistration -d $params.ants_dim \
                             --float 0 \
-                            -o [${sid}_vfa?_to_vfa1_displacement.mat,${sid}_fa-?_VFA_aligned.nii.gz] \
+                            -o [${moving.simpleName}_to_vfa1_displacement.mat,${moving.simpleName}_aligned.nii.gz] \
                             --transform $params.ants_transform \
                             --metric $params.ants_metric[$fixed,$moving,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
                             --convergence $params.ants_convergence \
@@ -266,7 +269,10 @@ process Align_Input_Volumes {
         """
 }
 
-test = in_ch3.groupTuple()
+test = vfa_aligned.groupTuple()
+	.view{"- $it"}
+
+test2 = in_ch4.groupTuple()
 	.view{"- $it"}
 
 process Fit_VFAT1_With_B1map_Without_Bet{
