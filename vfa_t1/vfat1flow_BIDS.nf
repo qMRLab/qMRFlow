@@ -118,10 +118,16 @@ if(params.root){
 	.transpose()
 	.view{"- $it"}
 
-    in_dataNii.into{dataNii_ch1; dataNii_ch2; in_ch3}
+    in_dataNii.into{dataNii_ch1; dataNii_ch2; in_ch3; in_ch4}
 
     vfa1 = dataNii_ch1
 	.first()
+
+    vfa1.into{vfa1_bet; vfa1_alignment}
+
+    vfa1_to_ants = vfa1_alignment
+	.flatten()
+	.last()
 	.view{"- $it"}
 
     in_dataJSON = Channel
@@ -130,11 +136,12 @@ if(params.root){
     /* ==== BIDS: B1 map ==== */             
     /* Look for B1map in fmap folder */
     b1_data = Channel
-        .fromFilePairs("$root/**/fmap/sub-*_TB1map.nii.gz", maxDepth:4, size:1, flat:true)   
-    (b1raw) = b1_data       
+        .fromFilePairs("$root/**/fmap/sub-*_TB1map.nii.gz", maxDepth:4, size:1, flat:true)
+    (b1map) = b1_data       
         .map{sid, B1plusmap -> [tuple(sid, B1plusmap)]}     
         .separate(1)
-	   
+	      
+
 }   
 else{
     error "ERROR: Argument (--root) must be passed. See USAGE."
@@ -143,13 +150,13 @@ else{
 log.info "qMRflow: VFAT1 pipeline"
 log.info "======================="
 log.info ""
-log.info "####   ### ########   ###   ########  ##"
-log.info "####   ### ##        ## ##     ##    ###"
-log.info "####   ### ##       ##   ##    ##     ##"
-log.info "####   ### ####    ##     ##   ##     ##"
-log.info "# ### ###  ##      #########   ##     ##"
-log.info "#  #####   ##      ##     ##   ##     ##"
-log.info "#   ###    ##      ##     ##   ##     ##"
+log.info "###   ## ########   ###   ########  ##"
+log.info "###   ## ##        ## ##     ##    ###"
+log.info "###   ## ##       ##   ##    ##     ##"
+log.info "###   ## ####    ##     ##   ##     ##"
+log.info "# ## ##  ##      #########   ##     ##"
+log.info "#  ###   ##      ##     ##   ##     ##"
+log.info "#   #    ##      ##     ##   ##     ##"
 log.info ""
 log.info "Start time: $workflow.start"
 log.info ""
@@ -202,8 +209,6 @@ log.warn "Process will NOT take any (possibly) existing B1maps into account."
 log.info ""
 log.info "======================="
 
-vfa1.into{vfa1_ch1; vfa1_ch2}
-
 process Extract_Brain{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
@@ -212,7 +217,7 @@ process Extract_Brain{
         params.use_bet == true
 
     input:
-        tuple val(sid), file(vfa1) from vfa1_ch1
+        tuple val(sid), file(vfa1) from vfa1_bet
 
     output:
         tuple val(sid), "${sid}_fa-1_mask.nii.gz" optional true into mask_from_bet
@@ -231,10 +236,69 @@ process Extract_Brain{
 
 }
 
+test2 = in_ch4.groupTuple()
+	.view{"- $it"}
+
+process Align_Input_Volumes {
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+
+    input:
+        tuple val(sid), file(moving) from dataNii_ch2
+	each fixed from vfa1_to_ants
+
+    output:
+        tuple val(sid), "${sid}_fa-?_VFA_aligned.nii.gz"\
+        into vfa_aligned
+        file "${sid}_fa-?_VFA_aligned.nii.gz"
+        file "${sid}_vfa?_to_vfa1_displacement.*.mat"
+
+    script:
+        """
+        antsRegistration -d $params.ants_dim \
+                            --float 0 \
+                            -o [${sid}_vfa?_to_vfa1_displacement.mat,${sid}_fa-?_VFA_aligned.nii.gz] \
+                            --transform $params.ants_transform \
+                            --metric $params.ants_metric[$fixed,$moving,$params.ants_metric_weight, $params.ants_metric_bins,$params.ants_metric_sampling,$params.ants_metric_samplingprct] \
+                            --convergence $params.ants_convergence \
+                            --shrink-factors $params.ants_shrink \
+                            --smoothing-sigmas $params.ants_smoothing
+        """
+}
+
 test = in_ch3.groupTuple()
 	.view{"- $it"}
 
+process Fit_VFAT1_With_B1map_Without_Bet{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    
+    when:
+        params.use_b1cor == true && params.use_bet==false
 
+    input:
+        tuple val(sid), file(data1) from test
+	tuple val(sid), file(data2) from in_dataJSON
+	tuple val(sid), file(b1map) from b1map
+
+    output:
+        file "${sid}_T1map.nii.gz" 
+        file "${sid}_M0map.nii.gz"
+        file "${sid}_T1map.json" 
+        file "${sid}_M0map.json"  
+        file "${sid}_vfa_t1.qmrlab.mat"
+
+    script: 
+        """
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+
+            $params.runcmd "requiredArgs_nii = split('$data1'); requiredArgs_jsn = split('$data2'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
+        """
+}
+
+/*
 process Fit_VFAT1_Without_B1map_Without_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
@@ -243,7 +307,7 @@ process Fit_VFAT1_Without_B1map_Without_Bet{
         params.use_b1cor == false && params.use_bet==false
 
     input:
-        tuple val(sid), file(data1) from test
+        tuple val(sid), file(data1) from test2
 	tuple val(sid), file(data2) from in_dataJSON
 
     output:
@@ -262,6 +326,7 @@ process Fit_VFAT1_Without_B1map_Without_Bet{
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
+*/
 
 
 
