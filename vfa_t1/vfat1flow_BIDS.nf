@@ -271,7 +271,11 @@ process Align_Input_Volumes {
         """
 }
 
-vfa_aligned = data_aligned.groupTuple()
+vfa_aligned = data_aligned
+    .groupTuple()
+    .map{sid, file_aligned -> tuple(sid, file_aligned.sort{it.name})}
+    .view{"- $it"}
+
 vfa_aligned.into{vfa_aligned_ch1;vfa_aligned_ch2;vfa_aligned_ch3;vfa_aligned_ch4}
 in_dataJSON.into{JSONfiles_ch1;JSONfiles_ch2;JSONfiles_ch3;JSONfiles_ch4}
 b1map.into{b1map_ch1;b1map_ch2}
