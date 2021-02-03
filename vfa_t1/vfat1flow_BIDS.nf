@@ -17,9 +17,8 @@ Docker:
         - qmrlab/minimal:v2.3.1
         - qmrlab/antsfsl:latest
 
-Author:
-    Agah Karakuzu 2019
-    agahkarakuzu@gmail.com 
+Written by: Agah Karakuzu, Juan Jose Velazquez Reyes | 2021
+GitHub:     @agahkarakuzu, @jvelazquez-reyes
 
 Users: Please see USAGE for further details
  */
@@ -81,8 +80,7 @@ if(params.help) {
                 "ants_convergence":"$params.ants_convergence",
                 "ants_shrink":"$params.ants_shrink",
                 "ants_smoothing":"$params.ants_smoothing",
-                "use_b1cor":"$params.use_b1cor",
-                "b1cor_factor":"$params.b1cor_factor",
+                "use_b1map":"$params.use_b1map",
                 "use_bet":"$params.use_bet",
                 "bet_recursive":"$params.bet_recursive",
                 "bet_threshold":"$params.bet_threshold",
@@ -102,24 +100,23 @@ if(params.help) {
 /*Scrape file names from a BIDS-compatible dataset
 Note:
     BIDS for qMRI is currently under development (BEP001,https://github.com/bids-standard/bep001)
-    The current format is valid as of late 2019 and subjected to change.
-    For B1plusmaps, there is not a specification yet. To circumvent this 
-    issue, these (optional) maps are assumed to be located at the fmap
-    folder with _B1plusmap suffix.   
+    The current format is valid as of late 2020 and subjected to change.
+    B1plusmaps (optional) maps are assumed to be located at the fmap
+    folder with _TB1map suffix.   
 */
 if(params.root){
     log.info "Input: $params.root"
     root = file(params.root)
     
     /* ==== BIDS: VFAT1 inputs ==== */  
-    /* Here, alphabetical indexes matter. Therefore, MToff -> MTon -> T1w */
+    /* Here, alphabetical indexes matter. */
     in_dataNii = Channel
         .fromFilePairs("$root/**/anat/sub-*_flip-[0-9]_VFA.nii.gz", maxDepth: 4, size: -1, flat: false)
 	.transpose()
-	.view{"- $it"}
 
     in_dataNii.into{dataNii_ch1; dataNii_ch2; in_ch3; in_ch4}
 
+    /* Get first element of dataNii_ch1 and split it for BET and antsRegistration (fixed) */
     vfa1 = dataNii_ch1
 	.first()
 
@@ -128,7 +125,6 @@ if(params.root){
     vfa1_to_ants = vfa1_alignment
 	.flatten()
 	.last()
-	.view{"- $it"}
 
     in_dataJSON = Channel
         .fromFilePairs("$root/**/anat/sub-*_flip-[0-9]_VFA.json", maxDepth: 4, size: -1, flat: false)
@@ -174,7 +170,7 @@ log.info "[GLOBAL]"
 log.info "---------------"
 log.info "Selected platform: $params.platform"
 log.info "BET enabled: $params.use_bet"
-log.info "B1+ correction enabled: $params.use_b1cor"
+log.info "B1+ correction enabled: $params.use_b1map"
 log.info ""
 log.info "[ANTs Registration]"
 log.info "-------------------"
@@ -198,11 +194,10 @@ log.info ""
 log.info "[qMRLab vfa_t1]"
 log.info "---------------"
 log.warn "Acquisition protocols will be read from  sidecar .json files (BIDS)."
-if (params.use_b1cor){
+if (params.use_b1map){
 log.info "B1+ correction has been ENABLED."  
-log.warn "Process will be skipped for participants missing a B1map file."   
-log.info "B1 correction factor: $params.b1cor_factor"}
-if (!params.use_b1cor){
+log.warn "Process will be skipped for participants missing a B1map file."}  
+if (!params.use_b1map){
 log.info "B1+ correction has been DISABLED."
 log.warn "Process will NOT take any (possibly) existing B1maps into account."
 }
@@ -220,29 +215,24 @@ process Extract_Brain{
         tuple val(sid), file(vfa1) from vfa1_bet
 
     output:
-        tuple val(sid), "${sid}_fa-1_mask.nii.gz" optional true into mask_from_bet
-        file "${sid}_fa-1_mask.nii.gz"
+        tuple val(sid), "${sid}_flip-1_mask.nii.gz" optional true into mask_from_bet
+        file "${sid}_flip-1_mask.nii.gz"
 
     script:
          if (params.bet_recursive){
         """    
-        bet $vfa1 ${sid}_fa-1.nii.gz -m -R -n -f $params.bet_threshold
+        bet $vfa1 ${sid}_flip-1.nii.gz -m -R -n -f $params.bet_threshold
         """}
         else{
         """    
-        bet $vfa1 ${sid}_fa-1.nii.gz -m -n -f $params.bet_threshold
+        bet $vfa1 ${sid}_flip-1.nii.gz -m -n -f $params.bet_threshold
         """
         }
 
 }
 
+/* Split map for fitting cases with optional mask */
 mask_from_bet.into{mask_ch1;mask_ch2}
-
-/*
-dataNii_ch2
-    .combine(vfa1_to_ants)
-    .set{data2ants}
-*/
 
 process Align_Input_Volumes {
     tag "${sid}"
@@ -271,11 +261,12 @@ process Align_Input_Volumes {
         """
 }
 
+/* Group data_aligned in a tuple sorting the elements by filename */
 vfa_aligned = data_aligned
     .groupTuple()
     .map{sid, file_aligned -> tuple(sid, file_aligned.sort{it.name})}
-    .view{"- $it"}
 
+/* Split channels for the following fitting processes */
 vfa_aligned.into{vfa_aligned_ch1;vfa_aligned_ch2;vfa_aligned_ch3;vfa_aligned_ch4}
 in_dataJSON.into{JSONfiles_ch1;JSONfiles_ch2;JSONfiles_ch3;JSONfiles_ch4}
 b1map.into{b1map_ch1;b1map_ch2}
@@ -302,9 +293,12 @@ process Fit_VFAT1_With_B1map_With_Bet{
 
     script: 
         """
-            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+            git clone $params.wrapper_repo
+	    cd qMRWrappers
+	    sh init_qmrlab_wrapper.sh $params.wrapper_version
+	    cd ..
 
-            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','mask','$mask','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); requiredArgs_nii = strsplit('$NIIfiles'); requiredArgs_jsn = strsplit('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','mask','$mask','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
@@ -331,9 +325,12 @@ process Fit_VFAT1_With_B1map_Without_Bet{
 
     script: 
         """
-            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+            git clone $params.wrapper_repo
+	    cd qMRWrappers
+	    sh init_qmrlab_wrapper.sh $params.wrapper_version
+	    cd ..
 
-            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); requiredArgs_nii = strsplit('$NIIfiles'); requiredArgs_jsn = strsplit('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
@@ -360,9 +357,12 @@ process Fit_VFAT1_Without_B1map_With_Bet{
 
     script: 
         """
-            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+            git clone $params.wrapper_repo
+	    cd qMRWrappers
+	    sh init_qmrlab_wrapper.sh $params.wrapper_version
+	    cd ..
 
-            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); requiredArgs_nii = strsplit('$NIIfiles'); requiredArgs_jsn = strsplit('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
@@ -388,27 +388,16 @@ process Fit_VFAT1_Without_B1map_Without_Bet{
 
     script: 
         """
-            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+            git clone $params.wrapper_repo
+	    cd qMRWrappers
+	    sh init_qmrlab_wrapper.sh $params.wrapper_version
+	    cd ..
 
-            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); requiredArgs_nii = strsplit('$NIIfiles'); requiredArgs_jsn = strsplit('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
