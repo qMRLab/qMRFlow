@@ -236,10 +236,12 @@ process Extract_Brain{
 
 }
 
+mask_from_bet.into{mask_ch1;mask_ch2}
+
 /*
 dataNii_ch2
     .combine(vfa1_to_ants)
-    .view{"- $it"}
+    .set{data2ants}
 */
 
 process Align_Input_Volumes {
@@ -252,7 +254,7 @@ process Align_Input_Volumes {
 
     output:
         tuple val(sid), "${moving.simpleName}_aligned.nii.gz"\
-        into vfa_aligned
+        into data_aligned
         file "${moving.simpleName}_aligned.nii.gz"
         file "${moving.simpleName}_to_vfa1_displacement.*.mat"
 
@@ -269,23 +271,52 @@ process Align_Input_Volumes {
         """
 }
 
-test = vfa_aligned.groupTuple()
-	.view{"- $it"}
+vfa_aligned = data_aligned.groupTuple()
+vfa_aligned.into{vfa_aligned_ch1;vfa_aligned_ch2;vfa_aligned_ch3;vfa_aligned_ch4}
+in_dataJSON.into{JSONfiles_ch1;JSONfiles_ch2;JSONfiles_ch3;JSONfiles_ch4}
+b1map.into{b1map_ch1;b1map_ch2}
 
-test2 = in_ch4.groupTuple()
-	.view{"- $it"}
+process Fit_VFAT1_With_B1map_With_Bet{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    
+    when:
+        params.use_b1map == true && params.use_bet==true
+
+    input:
+        tuple val(sid), file(NIIfiles) from vfa_aligned_ch1
+	tuple val(sid), file(JSONfiles) from JSONfiles_ch1
+	tuple val(sid), file(mask) from mask_ch1
+	tuple val(sid), file(b1map) from b1map_ch1
+
+    output:
+        file "${sid}_T1map.nii.gz" 
+        file "${sid}_M0map.nii.gz"
+        file "${sid}_T1map.json" 
+        file "${sid}_M0map.json"  
+        file "${sid}_vfa_t1.qmrlab.mat"
+
+    script: 
+        """
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+
+            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','mask','$mask','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
+        """
+}
 
 process Fit_VFAT1_With_B1map_Without_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
     
     when:
-        params.use_b1cor == true && params.use_bet==false
+        params.use_b1map == true && params.use_bet==false
 
     input:
-        tuple val(sid), file(data1) from test
-	tuple val(sid), file(data2) from in_dataJSON
-	tuple val(sid), file(b1map) from b1map
+        tuple val(sid), file(NIIfiles) from vfa_aligned_ch2
+	tuple val(sid), file(JSONfiles) from JSONfiles_ch2
+	tuple val(sid), file(b1map) from b1map_ch2
 
     output:
         file "${sid}_T1map.nii.gz" 
@@ -298,23 +329,51 @@ process Fit_VFAT1_With_B1map_Without_Bet{
         """
             cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
 
-            $params.runcmd "requiredArgs_nii = split('$data1'); requiredArgs_jsn = split('$data2'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
 
-/*
+process Fit_VFAT1_Without_B1map_With_Bet{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    
+    when:
+        params.use_b1map == false && params.use_bet==true
+
+    input:
+        tuple val(sid), file(NIIfiles) from vfa_aligned_ch3
+	tuple val(sid), file(JSONfiles) from JSONfiles_ch3
+	tuple val(sid), file(mask) from mask_ch2
+
+    output:
+        file "${sid}_T1map.nii.gz" 
+        file "${sid}_M0map.nii.gz"
+        file "${sid}_T1map.json" 
+        file "${sid}_M0map.json"  
+        file "${sid}_vfa_t1.qmrlab.mat"
+
+    script: 
+        """
+            cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
+
+            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+
+	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
+        """
+}
+
 process Fit_VFAT1_Without_B1map_Without_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
     
     when:
-        params.use_b1cor == false && params.use_bet==false
+        params.use_b1map == false && params.use_bet==false
 
     input:
-        tuple val(sid), file(data1) from test2
-	tuple val(sid), file(data2) from in_dataJSON
+        tuple val(sid), file(NIIfiles) from vfa_aligned_ch4
+	tuple val(sid), file(JSONfiles) from JSONfiles_ch4
 
     output:
         file "${sid}_T1map.nii.gz" 
@@ -327,12 +386,11 @@ process Fit_VFAT1_Without_B1map_Without_Bet{
         """
             cp /usr/local/qMRLab/qMRWrappers/vfa_t1/vfa_t1_wrapper2.m vfa_t1_wrapper2.m
 
-            $params.runcmd "requiredArgs_nii = split('$data1'); requiredArgs_jsn = split('$data2'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "requiredArgs_nii = split('$NIIfiles'); requiredArgs_jsn = split('$JSONfiles'); vfa_t1_wrapper2(requiredArgs_nii',requiredArgs_jsn','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
-*/
 
 
 
