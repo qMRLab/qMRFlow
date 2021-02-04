@@ -196,7 +196,7 @@ settings for use_b1map, one of the
 following 2 processes will be executed. 
 */
 
-process Fit_MTsat_With_B1map{
+process Fit_MP2RAGE_With_B1map{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
 
@@ -208,30 +208,30 @@ process Fit_MTsat_With_B1map{
         
     output:
         file "${sid}_T1map.nii.gz" 
-        file "${sid}_UNIT1.nii.gz"
-        file "${sid}_T1map.json" 
-        file "${sid}_UNIT1.json"  
+        file "${sid}_T1map.json"
+	file "${sid}_UNIT1.nii.gz"
+	file "${sid}_UNIT1.json"
         file "${sid}_mp2rage.qmrlab.mat"
 
     script: 
         """
-            git clone $params.wrapper_repo 
+            git clone -b mp2rage_UNIT1 $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mp2rage_wrapper('$uni','$unij','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); mp2rage_UNIT1_wrapper('$uni','$unij','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
 
-process Fit_MTsat_Without_B1map{
+process Fit_MP2RAGE_Without_B1map{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
     
     when:
-        params.use_b1cor == false
+        params.use_b1map == false
 
     input:
         tuple val(sid), file(uni), file(unij) from mp2rage_without_b1
@@ -245,13 +245,13 @@ process Fit_MTsat_Without_B1map{
 
     script: 
         """
-            git clone $params.wrapper_repo 
+            git clone -b mp2rage_UNIT1 $params.wrapper_repo 
             cd qMRWrappers
             sh init_qmrlab_wrapper.sh $params.wrapper_version 
             cd ..
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$uni','$unij','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "addpath(genpath('qMRWrappers')); mp2rage_UNIT1_wrapper('$uni','$unij','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
-	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
+	    mv dataset_description.json ${root}/derivatives/qMRLab/dataset_description.json
         """
 }
