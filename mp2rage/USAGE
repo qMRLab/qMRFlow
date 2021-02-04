@@ -1,0 +1,118 @@
+qMRflow MP2RAGE pipeline
+https://qmrlab.org
+===================
+
+USAGE
+
+nextflow run mp2rageflow_BIDS.nf [OPTIONAL_ARGUMENTS] (--root)
+
+DESCRIPTION
+
+    --root=/path/to/[root]              Root folder containing multiple subjects
+
+FOLDER ORGANIZATION
+
+BIDS convention                         For mp2rageflow_BIDS.nf
+
+                                        [root]
+                                        ├── sub-01
+                                        │   │── anat
+                                        │   │   ├── sub-01_UNIT1.nii.gz
+                                        |   |   └── sub-01_UNIT1.json
+                                        │   └── fmap
+                                        │       └── sub-01_TB1map.nii.gz (optional)
+                                        └── sub-02
+                                            │── anat
+                                            │   ├── sub-02_UNIT1.nii.gz
+                                            |   └── sub-02_UNIT1.json
+                                            └── fmap
+                                                └── sub-02_TB1map.nii.gz (optional)
+
+OPTIONAL ARGUMENTS
+
+--platform                      ["octave"/"matlab"] Platform choice. 
+--qmrlab_dir                    ["/path/to/qMRLab" OR null] Absolute path to the qMRLab's 
+                                root directory. If docker is enabled, MUST be set 
+                                to null (without double quotes). If docker is NOT enabled,
+                                then the absolute path to the qMRLab MUST be provided.
+                                Note that qMRLab version MUST be equal or greater than v2.3.1. 
+--octave_path                   ["/path/to/octave_exec" OR null] Absolute path to Octave's 
+                                executable. If docker is enabled, or, if you'd like to use
+                                Octave executable saved to your system path, MUST be set to
+                                null (without double quotes).
+--matlab_path                   ["/path/to/matlab_exec" OR null] Absolute path to MATLAB's 
+                                executable. If you'd like to use MATLAB executable saved to 
+                                your system path, MUST be set to null (without double quotes).
+                                Note that qMRLab requires MATLAB > R2014b. Docker image 
+                                containing MCR compiled version of this application is NOT 
+                                available yet. Therefore, container declerations for the
+                                processes starting with Fit_ prefix MUST be set to null 
+                                (without double quotes).  
+--use_b1map                     [true/false] Use and RF transmit field to correct for flip 
+                                angle imperfections.  
+--use_bet                       Use FSL's BET for skull stripping.
+--bet_recursive                 [true/false] This option runs more "robust" brain center estimation.
+--bet_threshold                 [0-1] Fractional intensity threshold (0->1); default=0.45; 
+                                smaller values give larger brain outline estimates
+
+
+NOTES
+
+- BIDS:
+
+    mp2rageflow_BIDS.nf         To process BIDSified MP2RAGE data. Note that BIDS for 
+                                quantitative MRI data is under development as of 
+                                early 2020. You can visit the GitHub project page
+                                [here](https://github.com/bids-standard/bep001). 
+- Example datasets: 
+
+    Custom-organized data       TBA
+    BIDSified MTsat data        https://osf.io/8x2c9/                                
+
+- Files should be compressed Nifti files (.nii.gz)
+
+- Timing parameters in the .json files MUST be in seconds. 
+
+- Subject IDs are used as the primary process ID and tag throughout the pipeline. 
+
+- We adhere to a strict one-process one-container mapping, where possible using off-the shelf
+  qMRLab containers. 
+
+- All the OPTIONAL ARGUMENTS can be modified in the `nextflow.config` file. The same 
+  config file is consumed by `mp2rageflow_BIDS.nf`.  
+
+- Unless the docker option is enabled in the `nextflow.config`, the following
+  dependencies must be installed and added to the system path: 
+    * ANTs registration (https://github.com/ANTsX/ANTs)
+    * FSL (https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/)
+    * Octave/MATLAB (https://www.gnu.org/software/octave/)
+                    (https://www.mathworks.com/)    
+    * qMRLab > v2.3.1       (https://qmrlab.org)
+    * git
+
+If you have Docker installed, enabling docker option will make use of the 
+following Docker images to execute processes: 
+    - qmrlab/minimal (https://hub.docker.com/repository/docker/qmrlab/minimal)
+                      594MB extends to 1.5GB
+                      Built at each qMRLab release.   
+    - qmrlab/antsfsl (https://hub.docker.com/repository/docker/qmrlab/antsfsl)
+                      374MB extends to 1.2GB                      
+                      Dockerfile is available at qMRLab/qMRflow.
+
+- You can take advantage of Nextflow's comprehensive tracing and visualization 
+  features while executing this pipeline: https://www.nextflow.io/docs/latest/tracing.html. 
+
+- For any requests, questions or contributions, please feel free to open
+  an issue at qMRflow's GitHub repo at https://github.com/qMRLab/qMRflow. 
+
+REFERENCES
+
+Please cite the following if you use this module:
+
+    Marques, José P. et al. 2010. MP2RAGE, a self bias-field corrected sequence for improved segmentation 
+    and T1-mapping at high field. Neuroimage. 49(2):1271-1281.
+
+In addition to: 
+
+    Karakuzu A. et al. 2019 The qMRLab workflow: From acquisition to publication., ISMRM 27th Annual
+    Meeting and Exhibition, Montreal, Canada. 
