@@ -1,4 +1,4 @@
-qMRflow mt_sat pipeline
+qMRflow vfa_t1 pipeline
 https://qmrlab.org
 ===================
 
@@ -17,24 +17,24 @@ BIDS convention                         For vfat1flow_BIDS.nf
                                         [root]
                                         ├── sub-01
                                         │   │── anat
-                                        │   │   ├── sub-01_acq-MTon_MTS.nii.gz
-                                        |   |   ├── sub-01_acq-MTon_MTS.json
-                                        │   │   ├── sub-01_acq-MToff_MTS.nii.gz
-                                        │   │   ├── sub-01_acq-MToff_MTS.json
-                                        │   │   ├── sub-01_acq-T1w_MTS.nii.gz                           
+                                        │   │   ├── sub-01_flip-1_VFA.nii.gz
+                                        |   |   ├── sub-01_flip-1_VFA.json
+                                        │   │   ├── sub-01_flip-2_VFA.nii.gz
+                                        │   │   ├── sub-01_flip-2_VFA.json
+                                        │   │   ├── sub-01_flip-n_VFA.nii.gz                           
                                         │   │   └── sub-01_acq-T1w_MTS.json
                                         │   └── fmap
-                                        │       └── sub-01_B1plusmap.nii.gz (optional)
+                                        │       └── sub-01_TB1map.nii.gz (optional)
                                         └── sub-02
                                             │── anat
-                                            │   ├── sub-02_acq-MTon_MTS.nii.gz
-                                            |   ├── sub-02_acq-MTon_MTS.json
-                                            │   ├── sub-02_acq-MToff_MTS.nii.gz
-                                            │   ├── sub-02_acq-MToff_MTS.json
-                                            │   ├── sub-02_acq-T1w_MTS.nii.gz                           
-                                            │   └── sub-02_acq-T1w_MTS.json
+                                            │   ├── sub-02_flip-1_VFA.nii.gz
+                                            |   ├── sub-02_flip-1_VFA.json
+                                            │   ├── sub-02_flip-2_VFA.nii.gz
+                                            │   ├── sub-02_flip-2_VFA.json
+                                            │   ├── sub-02_flip-n_VFA.nii.gz                           
+                                            │   └── sub-02_flip-n_VFA.json
                                             └── fmap
-                                                └── sub-02_B1plusmap.nii.gz (optional)
+                                                └── sub-02_TB1map.nii.gz (optional)
 
 OPTIONAL ARGUMENTS
 
@@ -85,10 +85,8 @@ OPTIONAL ARGUMENTS
 --ants_smoothing                [MxNxO] Specify the sigma of gaussian smoothing at each level.
                                 Units are given in terms of voxels ('vox') or physical spacing ('mm'). 
                                 Example usage is '4x2x1mm' and '4x2x1vox' where no units implies voxel spacing.
---use_b1cor                     [true/false] Use and RF transmit field to correct for flip 
-                                angle imperfections. 
---b1cor_factor                  [0-1] Correction factor (empirical) for the transmit RF. Only
-                                corrects MTSAT, not T1. Default 0.4. 
+--use_b1map                     [true/false] Use and RF transmit field to correct for flip 
+                                angle imperfections.  
 --use_bet                       Use FSL's BET for skull stripping.
 --bet_recursive                 [true/false] This option runs more "robust" brain center estimation.
 --bet_threshold                 [0-1] Fractional intensity threshold (0->1); default=0.45; 
@@ -99,7 +97,7 @@ NOTES
 
 - BIDS:
 
-    vfat1flow_BIDS.nf           To process BIDSified MTsat data. Note that BIDS for 
+    vfat1flow_BIDS.nf           To process BIDSified VFA data. Note that BIDS for 
                                 quantitative MRI data is under development as of 
                                 early 2020. You can visit the GitHub project page
                                 [here](https://github.com/bids-standard/bep001). 
@@ -117,8 +115,8 @@ NOTES
 - We adhere to a strict one-process one-container mapping, where possible using off-the shelf
   qMRLab containers. 
 
-- All the OPTIONAL ARGUMENTS can be modified in the `nextflow.config` file. The same 
-  config file is consumed by both `mtsatflow.nf` and `mtsatflow_BIDS.nf`.  
+- All the OPTIONAL ARGUMENTS can be modified in the `nextflow.config` file. The 
+  config file is consumed by `vfat1flow_BIDS.nf`.  
 
 - Unless the docker option is enabled in the `nextflow.config`, the following
   dependencies must be installed and added to the system path: 
@@ -148,8 +146,8 @@ REFERENCES
 
 Please cite the following if you use this module:
 
-    Helms, G. et al. 2008. High-resolution maps of magnetization transfer with inherent correction 
-    for RF inhomogeneity and T1 relaxation obtained from 3D FLASH MRI. Magn. Reson. Med. 60, 1396?1407.
+    Fram, E.K. et al. (1987). Rapid calculation of T1 using variable flip angle gradient refocused
+    imaging. Magn Reson Imaging, 5:201-208
 
 In addition to: 
 

@@ -293,7 +293,7 @@ process Fit_VFAT1_With_B1map_With_Bet{
 
     script: 
         """
-            git clone $params.wrapper_repo
+            git clone -b vfa_t1 $params.wrapper_repo
 	    cd qMRWrappers
 	    sh init_qmrlab_wrapper.sh $params.wrapper_version
 	    cd ..
