@@ -25,6 +25,6 @@ docker pull qmrlab/antsfsl:latest
 Data must be organized in [TB1map BIDS format](https://github.com/qMRLab/qMRFlow/blob/master/b1_afi/USAGE).
 
 ```
-cd /qMRFlow/mt_sat 
+cd /qMRFlow/b1_afi
 nextflow run b1afiflow_BIDS.nf --root $path_to_your_dataset -with-report report.html
 ```

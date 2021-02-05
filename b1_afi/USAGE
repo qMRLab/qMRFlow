@@ -109,7 +109,7 @@ NOTES
   qMRLab containers. 
 
 - All the OPTIONAL ARGUMENTS can be modified in the `nextflow.config` file. The same 
-  config file is consumed by both `b1afiflow.nf` and `b1afiflow_BIDS.nf`.  
+  config file is consumed by `b1afiflow_BIDS.nf`.  
 
 - Unless the docker option is enabled in the `nextflow.config`, the following
   dependencies must be installed and added to the system path: 
@@ -139,8 +139,8 @@ REFERENCES
 
 Please cite the following if you use this module:
 
-    Helms, G. et al. 2008. High-resolution maps of magnetization transfer with inherent correction 
-    for RF inhomogeneity and T1 relaxation obtained from 3D FLASH MRI. Magn. Reson. Med. 60, 1396?1407.
+    Yarnykh, VL., (2007). Actual Flip-Angle Imaging in the Pulsed Steady State: A Method for Rapid
+    Three Dimensional Mapping of the Transmitted Radiofrequency Field. Magn Reson Med, 57:192-200.
 
 In addition to: 
 
