@@ -257,7 +257,10 @@ following 2 processes will be executed.
 
 process Fit_b1afi_With_Bet{
     tag "${sid}"
-    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*TB1map.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.mat'
+    publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
 
     when:
         params.use_bet == true
@@ -270,6 +273,7 @@ process Fit_b1afi_With_Bet{
         file "${sid}_TB1map.nii.gz" 
         file "${sid}_TB1map.json" 
         file "${sid}_b1_afi.qmrlab.mat"
+	file "dataset_description.json"
 
     script: 
         """
@@ -277,13 +281,15 @@ process Fit_b1afi_With_Bet{
 
             $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','mask','$mask','b1filter','$params.b1_filter','type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size,'qmrlab_path','$params.qmrlab_path','sid','${sid}','containerType','$workflow.containerEngine', 'containerTag','$params.containerTag','description','$params.description','datasetDOI','$params.datasetDOI','datasetURL','$params.datasetURL','datasetVersion','$params.datasetVersion'); exit();"
 
-	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
 
 process Fit_b1afi_Without_Bet{
     tag "${sid}"
-    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*TB1map.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.mat'
+    publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
 
     when:
         params.use_bet == false
@@ -296,6 +302,7 @@ process Fit_b1afi_Without_Bet{
         file "${sid}_TB1map.nii.gz"  
         file "${sid}_TB1map.json" 
         file "${sid}_b1_afi.qmrlab.mat"
+	file "dataset_description.json"
 
     script: 
         """
@@ -303,7 +310,6 @@ process Fit_b1afi_Without_Bet{
 
             $params.runcmd "b1_afi_wrapper('$afiData1','$afiData2','$afiData1j','$afiData2j','b1filter','$params.b1_filter','type','$params.b1_filter_type','order',$params.b1_filter_order,'dimension','$params.b1_filter_dimension','size',$params.b1_filter_size, 'qmrlab_path','$params.qmrlab_path','sid','${sid}','containerType','$workflow.containerEngine', 'containerTag','$params.containerTag','description','$params.description','datasetDOI','$params.datasetDOI','datasetURL','$params.datasetURL','datasetVersion','$params.datasetVersion'); exit();"
 
-	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
                
 }
