@@ -198,7 +198,11 @@ following 2 processes will be executed.
 
 process Fit_MP2RAGE_With_B1map{
     tag "${sid}"
-    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*T1map.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*UNIT1.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.mat'
+    publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
 
     when:
         params.use_b1map == true
@@ -212,6 +216,7 @@ process Fit_MP2RAGE_With_B1map{
 	file "${sid}_UNIT1.nii.gz"
 	file "${sid}_UNIT1.json"
         file "${sid}_mp2rage.qmrlab.mat"
+	file "dataset_description.json"
 
     script: 
         """
@@ -222,13 +227,16 @@ process Fit_MP2RAGE_With_B1map{
 
             $params.runcmd "addpath(genpath('qMRWrappers')); mp2rage_UNIT1_wrapper('$uni','$unij','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
-	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
 }
 
 process Fit_MP2RAGE_Without_B1map{
     tag "${sid}"
-    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*T1map.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*UNIT1.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.mat'
+    publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
     
     when:
         params.use_b1map == false
@@ -242,6 +250,7 @@ process Fit_MP2RAGE_Without_B1map{
         file "${sid}_T1map.json" 
         file "${sid}_UNIT1.json" 
         file "${sid}_mp2rage.qmrlab.mat"
+	file "dataset_description.json"
 
     script: 
         """
@@ -252,6 +261,6 @@ process Fit_MP2RAGE_Without_B1map{
 
             $params.runcmd "addpath(genpath('qMRWrappers')); mp2rage_UNIT1_wrapper('$uni','$unij','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
-	    mv dataset_description.json ${root}/derivatives/qMRLab/dataset_description.json
         """
 }
+
