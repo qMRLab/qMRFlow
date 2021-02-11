@@ -115,7 +115,7 @@ if(params.root){
     /* ==== BIDS: MTSat inputs ==== */  
     /* Here, alphabetical indexes matter. Therefore, MToff -> MTon -> T1w */
     in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_flip-{01,02}_mt-{off,on}_MTS.nii.gz", maxDepth: 3, size: 3, flat: true)
+        .fromFilePairs("$root/**/anat/sub-*_flip-{1,2}_mt-{off,on}_MTS.nii.gz", maxDepth: 3, size: 3, flat: true)
     (pdw, mtw, t1w) = in_data
         .map{sid, MToff, MTon, T1w  -> [    tuple(sid, MToff),
                                             tuple(sid, MTon),
@@ -123,7 +123,7 @@ if(params.root){
         .separate(3)
 
     in_data = Channel
-        .fromFilePairs("$root/**/anat/sub-*_flip-{01,02}_mt-{off,on}_MTS.json", maxDepth: 3, size: 3, flat: true)
+        .fromFilePairs("$root/**/anat/sub-*_flip-{1,2}_mt-{off,on}_MTS.json", maxDepth: 3, size: 3, flat: true)
     (pdwj, mtwj, t1wj) = in_data
         .map{sid, MToff, MTon, T1w  -> [    tuple(sid, MToff),
                                             tuple(sid, MTon),
@@ -513,12 +513,9 @@ process Fit_MTsat_With_B1map_With_Bet{
 
     script: 
         """
-            git clone $params.wrapper_repo 
-            cd qMRWrappers
-            sh init_qmrlab_wrapper.sh $params.wrapper_version 
-            cd ..
+            cp -r /usr/local/qMRLab/datasets/Wrapper/ismrm20 ismrm20
 
-            $params.runcmd "addpath(genpath('qMRWrappers')); mt_sat_wrapper('$mtw_reg','$pdw_reg','$t1w','$mtwj','$pdwj','$t1wj','mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+            $params.runcmd "addpath(genpath('ismrm20')); requiredArgs_nii = {'$mtw_reg' '$pdw_reg' '$t1w'}; requiredArgs_jsn = {'$mtwj' '$pdwj' '$t1wj'}; qMRFit_BIDS_Wrapper(requiredArgs_nii, requiredArgs_jsn, '$params.qMR_suffix', 'mask','$mask','b1map','$b1map','b1factor',$params.b1cor_factor,'qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
 
 	    mv dataset_description.json $root/derivatives/qMRLab/dataset_description.json
         """
