@@ -103,13 +103,13 @@ if(params.root){
     /* Here, alphabetical indexes matter. */
     in_data = Channel
         .fromFilePairs("$root/**/anat/sub-*_UNIT1.nii.gz", maxDepth: 2, size: 1, flat: true)
-    (uni) = in_data
+    (unit) = in_data
         .map{sid, unit1  -> [tuple(sid, unit1)]}                                   
         .separate(1)
 
     in_data = Channel
         .fromFilePairs("$root/**/anat/sub-*_UNIT1.json", maxDepth: 2, size: 1, flat: true)
-    (unij) = in_data
+    (unitj) = in_data
         .map{sid, unit1  -> [tuple(sid, unit1)]}                                   
         .separate(1)
 
@@ -177,26 +177,86 @@ log.warn "Process will NOT take any (possibly) existing B1maps into account."
 log.info ""
 log.info "======================="
 
-/* Split input data into two to deal with B1map cases */
-uni.into{uni_ch1;uni_ch2}
+/* Split input data into two to deal with BET and B1map cases */
+unit.into{unit_ch1;unit_ch2;unit_ch3}
 
-unij.into{unij_ch1;unij_ch2}
+unitj.into{unitj_ch1;unitj_ch2}
 
-uni_ch1
-    .join(unij_ch1)
+process Extract_Brain{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy'
+
+    when:
+        params.use_bet == true
+
+    input:
+        tuple val(sid), file(unit) from unit_ch3
+
+    output:
+        tuple val(sid), "${sid}_UNIT1_mask.nii.gz" optional true into mask_from_bet
+        file "${sid}_UNIT1_mask.nii.gz"
+
+    script:
+         if (params.bet_recursive){
+        """    
+        bet $unit ${sid}_UNIT1.nii.gz -m -R -n -f $params.bet_threshold
+        """}
+        else{
+        """    
+        bet $unit ${sid}_UNIT1.nii.gz -m -n -f $params.bet_threshold
+        """
+        }
+
+}
+
+/* There is no input optional true concept in nextflow
+The process consuming the individual input channels will 
+only execute if the channel is populated.
+*/
+
+/* We need to conditionally create channels with
+input data or as empty channels.
+*/
+
+if (!params.use_bet){
+    Channel
+        .empty()
+        .set{mask_from_bet}
+}
+
+/* Split mask_from_bet into two to deal with B1map cases later. */
+mask_from_bet.into{mask_from_bet_ch1;mask_from_bet_ch2}
+
+unit_ch1
+    .join(unitj_ch1)
     .set{mp2rage_without_b1}
 
-uni_ch2
-    .join(unij_ch2)
+/* Split into two to deal with mask cases. */
+mp2rage_without_b1.into{mp2rage_wo_b1_bet;mp2rage_wo_b1}
+
+unit_ch2
+    .join(unitj_ch2)
     .join(b1raw)
     .set{mp2rage_with_b1}
 
+/* Split into two to deal with mask cases. */
+mp2rage_with_b1.into{mp2rage_w_b1_bet;mp2rage_w_b1}
+
+/* Deal with mask cases. */
+mp2rage_wo_b1_bet
+    .join(mask_from_bet_ch1)
+    .set{mp2rage_wo_b1_bet_merged}
+
+mp2rage_w_b1_bet
+    .join(mask_from_bet_ch2)
+    .set{mp2rage_w_b1_bet_merged}
+
 /* Depending on the nextflow.config 
-settings for use_b1map, one of the
-following 2 processes will be executed. 
+settings for use_b1map and use_bet, one of the
+following 4 processes will be executed. 
 */
 
-process Fit_MP2RAGE_With_B1map{
+process Fit_MP2RAGE_With_B1map_With_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*T1map.json'
@@ -205,10 +265,44 @@ process Fit_MP2RAGE_With_B1map{
     publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
 
     when:
-        params.use_b1map == true
+        params.use_b1map == true && params.use_bet == true
 
     input:
-        tuple val(sid), file(uni), file(unij), file(b1map) from mp2rage_with_b1
+        tuple val(sid), file(uni), file(unij), file(b1map), file(mask) from mp2rage_w_b1_bet_merged
+        
+    output:
+        file "${sid}_T1map.nii.gz" 
+        file "${sid}_T1map.json"
+	file "${sid}_UNIT1.nii.gz"
+	file "${sid}_UNIT1.json"
+        file "${sid}_mp2rage.qmrlab.mat"
+	file "dataset_description.json"
+
+    script: 
+        """
+            git clone -b mp2rage_UNIT1 $params.wrapper_repo 
+            cd qMRWrappers
+            sh init_qmrlab_wrapper.sh $params.wrapper_version 
+            cd ..
+
+            $params.runcmd "addpath(genpath('qMRWrappers')); mp2rage_UNIT1_wrapper('$uni','$unij','mask','$mask','b1map','$b1map','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+
+        """
+}
+
+process Fit_MP2RAGE_With_B1map_Without_Bet{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*T1map.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*UNIT1.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.mat'
+    publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
+
+    when:
+        params.use_b1map == true && params.use_bet == false
+
+    input:
+        tuple val(sid), file(uni), file(unij), file(b1map) from mp2rage_w_b1
         
     output:
         file "${sid}_T1map.nii.gz" 
@@ -230,7 +324,41 @@ process Fit_MP2RAGE_With_B1map{
         """
 }
 
-process Fit_MP2RAGE_Without_B1map{
+process Fit_MP2RAGE_Without_B1map_With_Bet{
+    tag "${sid}"
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*T1map.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*UNIT1.json'
+    publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.mat'
+    publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
+
+    when:
+        params.use_b1map == false && params.use_bet == true
+
+    input:
+        tuple val(sid), file(uni), file(unij), file(mask) from mp2rage_wo_b1_bet_merged
+        
+    output:
+        file "${sid}_T1map.nii.gz" 
+        file "${sid}_T1map.json"
+	file "${sid}_UNIT1.nii.gz"
+	file "${sid}_UNIT1.json"
+        file "${sid}_mp2rage.qmrlab.mat"
+	file "dataset_description.json"
+
+    script: 
+        """
+            git clone -b mp2rage_UNIT1 $params.wrapper_repo 
+            cd qMRWrappers
+            sh init_qmrlab_wrapper.sh $params.wrapper_version 
+            cd ..
+
+            $params.runcmd "addpath(genpath('qMRWrappers')); mp2rage_UNIT1_wrapper('$uni','$unij','mask','$mask','qmrlab_path','$params.qmrlab_path', 'sid','${sid}', 'containerType','$workflow.containerEngine', 'containerTag','$params.containerTag', 'description','$params.description', 'datasetDOI','$params.datasetDOI', 'datasetURL','$params.datasetURL', 'datasetVersion','$params.datasetVersion'); exit();"
+
+        """
+}
+
+process Fit_MP2RAGE_Without_B1map_Without_Bet{
     tag "${sid}"
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*.nii.gz'
     publishDir "$root/derivatives/qMRLab/${sid}", mode: 'copy', pattern: '*T1map.json'
@@ -239,10 +367,10 @@ process Fit_MP2RAGE_Without_B1map{
     publishDir "$root/derivatives/qMRLab", mode: 'copy', pattern: 'dataset_description.json'
     
     when:
-        params.use_b1map == false
+        params.use_b1map == false && params.use_bet == false
 
     input:
-        tuple val(sid), file(uni), file(unij) from mp2rage_without_b1
+        tuple val(sid), file(uni), file(unij) from mp2rage_wo_b1
 
     output:
         file "${sid}_T1map.nii.gz" 
